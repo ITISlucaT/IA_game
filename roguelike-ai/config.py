@@ -10,6 +10,7 @@ def load_config(config_path: str = None) -> dict:
             config = yaml.safe_load(file)
             return config
     except FileNotFoundError:
+        print("Config file not found:", config_path)
         return {
             'display': {
                 'width': 1600,

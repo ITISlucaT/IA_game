@@ -62,3 +62,13 @@ class Player:
         elif self.pos[1] >= self.room_size and self.current_room < num_rooms - num_cols:
             self.current_room += num_cols
             self.pos[1] = 0
+    
+def are_players_near(player1: Player, player2: Player) -> bool:
+    # Calcola la distanza tra i due giocatori
+    distance_x = abs(player1.x - player2.x)
+    distance_y = abs(player1.y - player2.y)
+    
+    # Verifica se la distanza è inferiore alla somma delle dimensioni
+    if distance_x < (player1.size + player2.size) and distance_y < (player1.size + player2.size):
+        return True
+    return False

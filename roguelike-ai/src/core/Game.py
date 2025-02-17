@@ -1,6 +1,6 @@
 import pygame as pg
 import numpy as np
-from src.utils.config import load_config
+from config import load_config
 from src.world.Room import Room
 from src.core.Player import Player
 from src.world.generator import MazeGenerator
@@ -92,7 +92,9 @@ class MazeGame:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     running = False
+
             
+
             self.handle_input()
             self.draw()
             clock.tick(60)  # Limit to 60 FPS
