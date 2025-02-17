@@ -15,13 +15,13 @@ class Room:
             'top': {'exists': False, 'range': (0, 0)}
         }
 
-    def setup_doors(self, num_cols: int, num_rows: int) -> None:
+    def setup_doors(self, num_cols: int, num_rows: int, neighbours: list) -> None:
         """Configura le porte basandosi sulla posizione della stanza nel labirinto."""
         col = self.room_number % num_cols
-        row = self.room_number // num_cols
+        row = self.room_number // num_rows
 
         # Porta destra
-        if col < num_cols - 1:
+        if (self.room_number + 1) in neighbours:
             door_start = self.size // 4
             door_end = self.size * 3 // 4
             self.doors['right'] = {
@@ -30,7 +30,7 @@ class Room:
             }
 
         # Porta in basso
-        if row < num_rows - 1:
+        if (self.room_number + num_cols) in neighbours:
             door_start = self.size // 4
             door_end = self.size * 3 // 4
             self.doors['bottom'] = {
@@ -39,7 +39,7 @@ class Room:
             }
 
         # Porta sinistra (se non è la prima colonna)
-        if col > 0:
+        if (self.room_number - 1) in neighbours:
             door_start = self.size // 4
             door_end = self.size * 3 // 4
             self.doors['left'] = {
@@ -48,7 +48,7 @@ class Room:
             }
 
         # Porta in alto (se non è la prima riga)
-        if row > 0:
+        if (self.room_number - num_cols) in neighbours:
             door_start = self.size // 4
             door_end = self.size * 3 // 4
             self.doors['top'] = {

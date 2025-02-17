@@ -29,13 +29,14 @@ class MazeGame:
         pg.display.set_caption(self.config['display']['caption'])
         
         self.maze_generator = MazeGenerator(self.NUM_ROWS, self.NUM_COLS)
-        self.graph = self.maze_generator.generate_graph()
+        self.graph = self.maze_generator.generate_grid_graph(self.NUM_ROWS, self.NUM_COLS)
         self.rooms = self._create_rooms()
         
         # Configure doors for each room based on the maze graph
         self._setup_room_doors()
         
-        self.player = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config)
+        self.player1 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config)
+        self.player2 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config)
 
     def _create_rooms(self):
         return [Room(c * self.ROOM_SIZE,
@@ -48,27 +49,40 @@ class MazeGame:
     def _setup_room_doors(self):
         """Configure doors for each room based on the maze graph."""
         for room in self.rooms:
-            room.setup_doors(self.NUM_COLS, self.NUM_ROWS)
+            room.setup_doors(self.NUM_COLS, self.NUM_ROWS, self.graph[room.room_number])
 
     def draw(self):
         self.screen.fill(self.COLORS['white'])
         for room in self.rooms:
             room.draw(self.screen, self.NUM_COLS, self.NUM_ROWS, self.COLORS)
-        self.player.draw(self.screen, self.NUM_COLS, self.COLORS)
+        self.player1.draw(self.screen, self.NUM_COLS, self.COLORS)
+        self.player2.draw(self.screen, self.NUM_COLS, self.COLORS)
         pg.display.flip()
 
     def handle_input(self):
         keys = pg.key.get_pressed()
-        current_room = self.rooms[self.player.current_room]
+        current_room = self.rooms[self.player1.current_room]
         
-        if keys[pg.K_UP] or keys[pg.K_w]:
-            self.player.move("UP", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        if keys[pg.K_DOWN] or keys[pg.K_s]:
-            self.player.move("DOWN", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        if keys[pg.K_LEFT] or keys[pg.K_a]:
-            self.player.move("LEFT", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        if keys[pg.K_RIGHT] or keys[pg.K_d]:
-            self.player.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room)
+        if keys[pg.K_UP]:
+            self.player1.move("UP", self.NUM_COLS, self.NUM_ROOMS, current_room)
+        if keys[pg.K_DOWN]:
+            self.player1.move("DOWN", self.NUM_COLS, self.NUM_ROOMS, current_room)
+        if keys[pg.K_LEFT]:
+            self.player1.move("LEFT", self.NUM_COLS, self.NUM_ROOMS, current_room)
+        if keys[pg.K_RIGHT]:
+            self.player1.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room)
+
+        current_room = self.rooms[self.player2.current_room]
+        # muovo il giocatore con le freccette
+        if keys[pg.K_w]:
+            self.player2.move("UP", self.NUM_COLS, self.NUM_ROOMS, current_room)
+        if keys[pg.K_s]:
+            self.player2.move("DOWN", self.NUM_COLS, self.NUM_ROOMS, current_room)
+        if keys[pg.K_a]:
+            self.player2.move("LEFT", self.NUM_COLS, self.NUM_ROOMS, current_room)
+        if keys[pg.K_d]:
+            self.player2.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room)
+        
 
     def run(self):
         running = True
