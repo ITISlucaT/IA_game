@@ -8,6 +8,7 @@ from src.world.generator import MazeGenerator
 class MazeGame:
     def __init__(self):
         pg.init()
+        self.starting_time = pg.time.get_ticks()
         self.config = load_config()
         self.WIDTH = self.config['display']['width']
         self.HEIGHT = self.config['display']['height']
@@ -25,7 +26,7 @@ class MazeGame:
             color: tuple(values) for color, values in self.config['colors'].items()
         }
         
-        self.screen = pg.display.set_mode((self.WIDTH, self.HEIGHT))
+        self.screen = pg.display.set_mode((self.WIDTH, self.HEIGHT), pg.RESIZABLE)
         pg.display.set_caption(self.config['display']['caption'])
         
         self.maze_generator = MazeGenerator(self.NUM_ROWS, self.NUM_COLS)
@@ -83,6 +84,16 @@ class MazeGame:
         if keys[pg.K_d]:
             self.player2.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room)
         
+    def ceck_collision_btween_player(self):
+        if self.player1.current_room == self.player2.current_room:
+            distanza_quadrata = (self.player2.pos[0] - self.player1.pos[0]) ** 2 + (self.player2.pos[1] - self.player1.pos[1]) ** 2
+            r_somma_quadrato = (self.player1.size + self.player2.size) ** 2
+            return distanza_quadrata <= r_somma_quadrato
+        return False
+    
+    def timer(self, duration_min = 5):
+        duration_ticks = duration_min * 60 * 1000
+        return (pg.time.get_ticks() - self.starting_time) >= duration_ticks
 
     def run(self):
         running = True
@@ -93,6 +104,16 @@ class MazeGame:
                 if event.type == pg.QUIT:
                     running = False
 
+            if self.ceck_collision_btween_player():
+                print("game winned")
+                running = False
+            if self.timer(1):
+                print("game lost")
+                running = False 
+            # Check if player1 has reached player2 based on their positions x(Player.pos[0]) and y(Player.pos[1]), considering their size
+            # if (abs(self.player1.pos[0] - self.player2.pos[0]) <= self.player1.size and abs(self.player1.pos[1] - self.player2.pos[1]) <= self.player1.size):
+            #     print("game winned")
+            #     running = False
             
 
             self.handle_input()
