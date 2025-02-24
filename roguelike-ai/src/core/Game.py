@@ -4,6 +4,7 @@ from config import load_config
 from src.world.Room import Room
 from src.core.Player import Player
 from src.world.generator import MazeGenerator
+import math
 
 class MazeGame:
     def __init__(self):
@@ -38,6 +39,7 @@ class MazeGame:
         
         self.player1 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config)
         self.player2 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config)
+        self.previous_distance = 10000
 
     def _create_rooms(self):
         return [Room(c * self.ROOM_SIZE,
@@ -142,6 +144,24 @@ class MazeGame:
     
     #def penalties(self):
 
+        #metodo per vedere se i giocatori si avvcinano fra loro
+    def player_getting_closer(self):
+        if self.player1.current_room == self.player2.current_room:
+            x1, y1 = self.player1.pos
+            x2, y2 = self.player2.pos
+
+            distanza_attuale = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
+
+            
+            if distanza_attuale < self.previous_distance:
+                self.previous_distance = distanza_attuale
+                return True
+            else:
+                self.previous_distance = distanza_attuale
+                return False
+            
+
+
 
     def run(self):
         running = True
@@ -154,6 +174,11 @@ class MazeGame:
                 print("Giocatore 1 muove")
             else:
                 print("Giocatore 1 non muove")
+
+            if self.player_getting_closer():
+                print("Giocatori si avvicinano")
+            else:
+                print("Giocatori non si avvicinano")
 
             for event in pg.event.get():
                 if event.type == pg.QUIT:

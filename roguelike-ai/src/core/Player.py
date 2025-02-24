@@ -50,6 +50,8 @@ class Player:
         else:
             # Only handle room transition if we can pass through
             self._handle_room_transition(num_cols, num_rooms)
+        
+        self.player_is_moving = self.pos[0] != old_pos[0] or self.pos[1] != old_pos[1]
 
     def _handle_room_transition(self, num_cols: int, num_rooms: int):
         if self.pos[0] <= 0 and self.current_room % num_cols != 0:
