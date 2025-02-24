@@ -91,15 +91,70 @@ class MazeGame:
             return distanza_quadrata <= r_somma_quadrato
         return False
     
+    def check_collision_with_wall(self, player):
+        """
+        Check if a player is colliding with a wall in the current room.
+        
+        Args:
+            player: Player object to check for collisions
+            
+        Returns:
+            bool: True if collision with wall detected, False otherwise
+        """
+        current_room = self.rooms[player.current_room]
+        room_col = player.current_room % self.NUM_COLS
+        room_row = player.current_room // self.NUM_COLS
+        
+        # Calculate absolute position in the screen coordinates
+        abs_x = room_col * self.ROOM_SIZE + player.pos[0]
+        abs_y = room_row * self.ROOM_SIZE + player.pos[1]
+        
+        # Check collision with room boundaries
+        collision = False
+        
+        # Check left wall
+        if player.pos[0] - player.size <= 0:
+            # Check if there's a door and if the player can pass through it
+            if not current_room.can_pass_through((player.pos[0], player.pos[1]), 'left'):
+                collision = True
+        
+        # Check right wall
+        if player.pos[0] + player.size >= self.ROOM_SIZE:
+            if not current_room.can_pass_through((player.pos[0], player.pos[1]), 'right'):
+                collision = True
+        
+        # Check top wall
+        if player.pos[1] - player.size <= 0:
+            if not current_room.can_pass_through((player.pos[0], player.pos[1]), 'top'):
+                collision = True
+        
+        # Check bottom wall
+        if player.pos[1] + player.size >= self.ROOM_SIZE:
+            if not current_room.can_pass_through((player.pos[0], player.pos[1]), 'bottom'):
+                collision = True
+        
+        return collision
+
+    
     def timer(self, duration_min = 5):
         duration_ticks = duration_min * 60 * 1000
         return (pg.time.get_ticks() - self.starting_time) >= duration_ticks
+    
+    #def penalties(self):
+
 
     def run(self):
         running = True
         clock = pg.time.Clock()
         
         while running:
+            if self.check_collision_with_wall(self.player1):
+                print("Muro toccato")
+            if self.player1.is_moving_in_a_step(5000):
+                print("Giocatore 1 muove")
+            else:
+                print("Giocatore 1 non muove")
+
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     running = False

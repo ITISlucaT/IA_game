@@ -9,6 +9,8 @@ class Player:
         self.room_size = room_size
         self.speed = config['player']['speed']
         self.size = config['player']['size']
+        self.direction = "left"
+        self.last_movement_time = 0
 
     def draw(self, surface, num_cols: int, colors: Dict):
         room_row = self.current_room // num_cols
@@ -62,7 +64,51 @@ class Player:
         elif self.pos[1] >= self.room_size and self.current_room < num_rooms - num_cols:
             self.current_room += num_cols
             self.pos[1] = 0
-    
+
+    def is_moving(self):
+        """
+        Determines if the player is currently moving based on velocity or action state.
+        This method is designed to be compatible with OpenAI Gym environments.
+        
+        Returns:
+            bool: True if the player is moving, False otherwise
+        """
+
+        # Option 3: Check movement based on position delta
+        if hasattr(self, 'last_position'):
+            current_pos = self.pos.copy()
+            is_moving = current_pos != self.last_position
+            self.last_position = current_pos  # Update last position for next check
+            return is_moving
+        
+        # If none of the above attributes exist, initialize last_position
+        else:
+            self.last_position = self.pos.copy()
+            return False
+        
+    def is_moving_in_a_step(self, time):
+        """
+        Check if the player is moving in the last 'time' milliseconds.
+        
+        Args:
+            time: int - Time window in milliseconds to check for movement
+            
+        Returns:
+            bool: True if the player has been moving within the specified time window, False otherwise
+        """
+        current_moving = self.is_moving()
+
+        current_time = pg.time.get_ticks()
+        
+        if not hasattr(self, 'last_movement_time'):
+            self.last_movement_time = current_time if current_moving else 0
+        
+        if current_moving:
+            self.last_movement_time = current_time
+        
+        # Check if the player has been moving within the specified time window
+        return (current_moving or (current_time - self.last_movement_time) < time)
+        
 def are_players_near(player1: Player, player2: Player) -> bool:
     # Calcola la distanza tra i due giocatori
     distance_x = abs(player1.x - player2.x)
