@@ -84,7 +84,7 @@ class MazeGame:
         if keys[pg.K_d]:
             self.player2.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room)
         
-    def ceck_collision_btween_player(self):
+    def check_collision_between_player(self):
         if self.player1.current_room == self.player2.current_room:
             distanza_quadrata = (self.player2.pos[0] - self.player1.pos[0]) ** 2 + (self.player2.pos[1] - self.player1.pos[1]) ** 2
             r_somma_quadrato = (self.player1.size + self.player2.size) ** 2
@@ -104,8 +104,8 @@ class MazeGame:
                 if event.type == pg.QUIT:
                     running = False
 
-            if self.ceck_collision_btween_player():
-                print("game winned")
+            if self.check_collision_between_player():
+                print("game won")
                 running = False
             if self.timer(1):
                 print("game lost")
