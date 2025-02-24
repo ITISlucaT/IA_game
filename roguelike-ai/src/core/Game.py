@@ -1,5 +1,6 @@
 import pygame as pg
 import numpy as np
+import networkx as nx
 from config import load_config
 from src.world.Room import Room
 from src.core.Player import Player
@@ -33,12 +34,14 @@ class MazeGame:
         self.maze_generator = MazeGenerator(self.NUM_ROWS, self.NUM_COLS)
         self.graph = self.maze_generator.generate_grid_graph(self.NUM_ROWS, self.NUM_COLS)
         self.rooms = self._create_rooms()
+        self.size = self.NUM_ROOMS * self.ROOM_SIZE
         
         # Configure doors for each room based on the maze graph
         self._setup_room_doors()
         
         self.player1 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config)
         self.player2 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config)
+        self.previous_distance_room = nx.shortest_path_length(self.graph, self.player1.current_room, self.player2.current_room)
         self.previous_distance = 10000
 
     def _create_rooms(self):
@@ -153,6 +156,14 @@ class MazeGame:
             distanza_attuale = math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
 
             
+            if distanza_attuale < self.previous_distance:
+                self.previous_distance = distanza_attuale
+                return True
+            else:
+                self.previous_distance = distanza_attuale
+                return False
+        else:
+            distanza_attuale = nx.shortest_path_length(self.graph, self.player1.current_room, self.player2.current_room)
             if distanza_attuale < self.previous_distance:
                 self.previous_distance = distanza_attuale
                 return True
