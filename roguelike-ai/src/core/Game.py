@@ -160,7 +160,11 @@ class MazeGame:
                 self.previous_distance = distanza_attuale
                 return False
             
-
+    def player_changing_room(self):
+        ret = (self.player1.room_changed, self.player2.room_changed)
+        self.player1.room_changed = False
+        self.player2.room_changed = False
+        return ret
 
 
     def run(self):
@@ -180,6 +184,11 @@ class MazeGame:
             else:
                 print("Giocatori non si avvicinano")
 
+            ret = self.player_changing_room()
+            if ret[0]:
+                print("player 1 ha cambiato stanza")
+            if ret[1]:
+                print("player 2 ha cambiato stanza")
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     running = False

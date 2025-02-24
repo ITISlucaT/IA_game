@@ -11,6 +11,8 @@ class Player:
         self.size = config['player']['size']
         self.direction = "left"
         self.last_movement_time = 0
+        self.previous_room = self.current_room
+        self.room_changed = False
 
     def draw(self, surface, num_cols: int, colors: Dict):
         room_row = self.current_room // num_cols
@@ -66,6 +68,11 @@ class Player:
         elif self.pos[1] >= self.room_size and self.current_room < num_rooms - num_cols:
             self.current_room += num_cols
             self.pos[1] = 0
+
+        if self.previous_room == self.current_room:
+            self.room_changed = False
+        else:
+            self.room_changed = True
 
     def is_moving(self):
         """
