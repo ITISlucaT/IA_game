@@ -1,69 +1,162 @@
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
-from src.core.Game import MazeGame  # Assumendo che MazeGame sia definito in un file separato
+import pygame as pg
+from src.core.Game import MazeGame
+import networkx as nx
 
 class MazeEnv(gym.Env):
-    metadata = {"render_modes": ["human"]}
+    metadata = {'render.modes': ['human', 'rgb_array'], 'render_fps': 60}
 
     def __init__(self):
-        super().__init__()
+        super(MazeEnv, self).__init__()
+        
+        # Inizializza il gioco
         self.game = MazeGame()
         
-        size = max(self.game.NUM_ROWS, self.game.NUM_COLS)  # Definisci la size del tuo spazio
-        self.observation_space = spaces.Dict(
-            {
-                "agent": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-                "target": spaces.Box(0, size - 1, shape=(2,), dtype=int),
-            }
+        # Definisci lo spazio delle azioni (discreto)
+        self.action_space = spaces.Discrete(4)  # 0: UP, 1: DOWN, 2: LEFT, 3: RIGHT
+        
+        # Definisci lo spazio delle osservazioni (stato)
+        # Esempio: posizione del giocatore, posizione del target, stato delle porte
+        self.observation_space = spaces.Box(
+            low=0, high=1, shape=(self.game.NUM_ROOMS * 2 + 4,), dtype=np.float32
         )
-
-        self.action_space = spaces.Discrete(4)  # Azioni: su, giù, sinistra, destra
-        self.score = 0
-
-    def step(self, action):
-        if action == 0:
-            self.game.player1.move("UP", self.game.NUM_COLS, self.game.NUM_ROOMS, self.game.rooms[self.game.player1.current_room])
-        elif action == 1:
-            self.game.player1.move("DOWN", self.game.NUM_COLS, self.game.NUM_ROOMS, self.game.rooms[self.game.player1.current_room])
-        elif action == 2:
-            self.game.player1.move("LEFT", self.game.NUM_COLS, self.game.NUM_ROOMS, self.game.rooms[self.game.player1.current_room])
-        elif action == 3:
-            self.game.player1.move("RIGHT", self.game.NUM_COLS, self.game.NUM_ROOMS, self.game.rooms[self.game.player1.current_room])
-            
         
-        done = self.game.check_collision_between_player()  # Fine episodio se i giocatori si incontrano
+        # Inizializza lo stato
+        self.state = self._get_state()
         
-        reward = 0
+        # Variabili per il rendering
+        self.screen = None
+        self.clock = None
 
-        if self.game.check_collision_with_wall(self.game.player1):
-            reward += -0.3
-        if self.game.player_getting_closer():
-            reward += 1
-        else:
-            reward += -1
-        if self.game.player_changing_room():
-            reward += 0.5
-        if done:
-            reward += 10
+    def _get_state(self):
+        """
+        Ottieni lo stato corrente del gioco.
+        Restituisce un array numpy che rappresenta lo stato.
+        """
+        # Esempio: posizione del giocatore, posizione del target, stato delle porte
+        player_room = self.game.player1.current_room
+        target_room = self.game.player2.current_room
+        
 
-        self.score += reward
-
-        return self._get_obs(), reward, done, False, {}
+        # Combina tutto in un unico array
+        state = np.array([player_room, target_room], dtype=np.float32)
+        return state
 
     def reset(self, seed=None, options=None):
+        """
+        Resetta l'ambiente e restituisce lo stato iniziale.
+        """
         super().reset(seed=seed)
+        
+        # Resetta il gioco
         self.game = MazeGame()
-        return self._get_obs(), {}
+        
+        # Ottieni lo stato iniziale
+        self.state = self._get_state()
+        
+        return self.state, {}
 
-    def _get_obs(self):
-        return {
-            "agent": np.array([self.game.player1.pos[0], self.game.player1.pos[1]], dtype=int),
-            "target": np.array([self.game.player2.pos[0], self.game.player2.pos[1]], dtype=int),
+    def step(self, action):
+        """
+        Esegue un'azione e restituisce:
+        - next_state: il nuovo stato
+        - reward: la ricompensa ottenuta
+        - done: se l'episodio è terminato
+        - info: informazioni aggiuntive
+        """
+        # Esegui l'azione nel gioco
+        self._take_action(action)
+        
+        # Ottieni il nuovo stato
+        next_state = self._get_state()
+        
+        # Calcola la ricompensa
+        reward = self._get_reward()
+        
+        # Controlla se l'episodio è terminato
+        done = self.game.check_collision_between_player() or self.game.timer(1)
+        
+        # Info aggiuntive (opzionale)
+        info = {}
+        
+        return next_state, reward, done, False, info
+
+    def _take_action(self, action):
+        """
+        Esegue l'azione nel gioco.
+        """
+        # Mappa l'azione a una direzione
+        action_map = {
+            0: "UP",
+            1: "DOWN",
+            2: "LEFT",
+            3: "RIGHT"
         }
+        direction = action_map[action]
+        
+        # Esegui il movimento del giocatore
+        current_room = self.game.rooms[self.game.player1.current_room]
+        self.game.player1.move(direction, self.game.NUM_COLS, self.game.NUM_ROOMS, current_room)
 
-    def render(self):
-        self.game.draw()
+    def _get_reward(self):
+        """
+        Calcola la ricompensa in base allo stato corrente.
+        """
+        reward = 0
+        
+        # Ricompensa positiva per avvicinarsi al target
+        previous_distance = self.game.previous_distance_room
+        current_distance = nx.shortest_path_length(
+            self.game.graph, 
+            self.game.player1.current_room, 
+            self.game.player2.current_room
+        )
+        
+        if current_distance < previous_distance:
+            reward += 1  # Ricompensa per avvicinarsi
+        # elif current_distance > previous_distance:
+        #     reward -= 1  # Penalità per allontanarsi
+        
+        # Ricompensa per raggiungere il target
+        if self.game.check_collision_between_player():
+            reward += 10
+        
+        # Penalità per il tempo
+        reward -= 0.1  # Piccola penalità per ogni passo
+
+        metrics = self.game.player1.get_movement_metrics()
+        
+        # Penalize idle time
+        idle_penalty = -0.1 * metrics['idle_time']
+        
+        # Reward movement
+        reward  += 0.5 if metrics['is_moving'] else -0.2
+        
+        return reward
+
+    def render(self, mode='human'):
+        """
+        Renderizza l'ambiente.
+        """
+        if mode == 'human':
+            if self.screen is None:
+                pg.init()
+                self.screen = pg.display.set_mode((self.game.WIDTH, self.game.HEIGHT))
+                self.clock = pg.time.Clock()
+            
+            self.game.draw()
+            pg.display.flip()
+            self.clock.tick(self.metadata['render_fps'])
+        
+        elif mode == 'rgb_array':
+            return pg.surfarray.array3d(self.game.screen)
 
     def close(self):
-        pass
+        """
+        Chiude l'ambiente e libera le risorse.
+        """
+        if self.screen is not None:
+            pg.quit()
+            self.screen = None

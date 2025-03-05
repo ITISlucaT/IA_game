@@ -2,7 +2,9 @@ import pygame as pg
 from typing import Dict, Tuple, List
 
 class Room:
-    def __init__(self, x: int, y: int, size: int, room_number: int):
+    def __init__(self, x: int, y: int, size: int, room_number: int, tile_size: int):
+        self.tile_size = tile_size
+        self.grid_size = size // tile_size
         self.x = x
         self.y = y
         self.size = size
@@ -17,13 +19,12 @@ class Room:
 
     def setup_doors(self, num_cols: int, num_rows: int, neighbours: list) -> None:
         """Configura le porte basandosi sulla posizione della stanza nel labirinto."""
-        col = self.room_number % num_cols
-        row = self.room_number // num_rows
+        door_size = self.size // 8  # Dimensione della porta (1/8 della stanza)
+        door_start = (self.size // 2) - (door_size // 2)
+        door_end = (self.size // 2) + (door_size // 2)
 
         # Porta destra
         if (self.room_number + 1) in neighbours:
-            door_start = self.size // 4
-            door_end = self.size * 3 // 4
             self.doors['right'] = {
                 'exists': True,
                 'range': (door_start, door_end)
@@ -31,55 +32,58 @@ class Room:
 
         # Porta in basso
         if (self.room_number + num_cols) in neighbours:
-            door_start = self.size // 4
-            door_end = self.size * 3 // 4
             self.doors['bottom'] = {
                 'exists': True,
                 'range': (door_start, door_end)
             }
 
-        # Porta sinistra (se non è la prima colonna)
+        # Porta sinistra
         if (self.room_number - 1) in neighbours:
-            door_start = self.size // 4
-            door_end = self.size * 3 // 4
             self.doors['left'] = {
                 'exists': True,
                 'range': (door_start, door_end)
             }
 
-        # Porta in alto (se non è la prima riga)
+        # Porta in alto
         if (self.room_number - num_cols) in neighbours:
-            door_start = self.size // 4
-            door_end = self.size * 3 // 4
             self.doors['top'] = {
                 'exists': True,
                 'range': (door_start, door_end)
             }
-
-    def can_pass_through(self, position: Tuple[int, int], direction: str) -> bool:
+    def can_pass_through(self, grid_x: int, grid_y: int, direction: str) -> bool:
         """
-        Verifica se è possibile passare attraverso una porta in una data posizione e direzione.
+        Verifica se il giocatore può passare attraverso una porta nella direzione specificata.
         
         Args:
-            position: Tuple[int, int] - Posizione relativa nella stanza (x, y)
-            direction: str - Direzione del movimento ('right', 'left', 'top', 'bottom')
-            
+            grid_x (int): Posizione X del giocatore nella griglia della stanza.
+            grid_y (int): Posizione Y del giocatore nella griglia della stanza.
+            direction (str): Direzione del movimento ('right', 'left', 'top', 'bottom').
+        
         Returns:
-            bool: True se il passaggio è consentito, False altrimenti
+            bool: True se il giocatore è allineato con una porta, False altrimenti.
         """
         if not self.doors[direction]['exists']:
-            return False
+            return False  # Non c'è una porta in questa direzione
 
-        x, y = position
-        door_range = self.doors[direction]['range']
+        # Ottieni l'intervallo della porta
+        door_start, door_end = self.doors[direction]['range']
+        tile_size = self.size // self.grid_size
 
+        # Converti le coordinate della porta in coordinate della griglia
+        door_start_grid = door_start // tile_size
+        door_end_grid = door_end // tile_size
+
+        # Controlla se il giocatore è allineato con la porta
         if direction in ['right', 'left']:
-            return door_range[0] <= y <= door_range[1]
-        else:  # top or bottom
-            return door_range[0] <= x <= door_range[1]
+            # Porte a destra/sinistra: il giocatore deve essere allineato verticalmente
+            return door_start_grid <= grid_y <= door_end_grid
+        else:
+            # Porte in alto/basso: il giocatore deve essere allineato orizzontalmente
+            return door_start_grid <= grid_x <= door_end_grid
 
     def draw(self, surface, num_cols: int, num_rows: int, colors: Dict):
         """Disegna la stanza con le sue porte."""
+        self._draw_grid(surface, colors['black'])
         # Disegna il bordo della stanza
         pg.draw.rect(surface, colors['green'], (self.x, self.y, self.size, self.size), 1)
         
@@ -94,6 +98,14 @@ class Room:
 
         # Disegna le porte
         self._draw_doors(surface, colors)
+
+    def _draw_grid(self, surface, color):
+        """Disegna la griglia delle tile nella stanza"""
+        for x in range(0, self.size, self.tile_size):
+            pg.draw.line(surface, color, (self.x + x, self.y), (self.x + x, self.y + self.size))
+        for y in range(0, self.size, self.tile_size):
+            pg.draw.line(surface, color, (self.x, self.y + y), (self.x + self.size, self.y + y))
+
 
     def _draw_doors(self, surface, colors: Dict):
         """Disegna le porte della stanza."""

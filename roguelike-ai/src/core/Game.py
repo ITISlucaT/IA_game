@@ -14,14 +14,10 @@ class MazeGame:
         self.config = load_config()
         self.WIDTH = self.config['display']['width']
         self.HEIGHT = self.config['display']['height']
-        self.NUM_ROWS = np.random.randint(
-            self.config['maze']['min_rows'],
-            self.config['maze']['max_rows']
-        )
-        self.NUM_COLS = np.random.randint(
-            self.config['maze']['min_cols'],
-            self.config['maze']['max_cols']
-        )
+        self.NUM_ROWS = self.config['maze']['min_rows']
+
+        self.NUM_COLS = self.config['maze']['min_cols']
+
         self.NUM_ROOMS = self.NUM_ROWS * self.NUM_COLS
         self.ROOM_SIZE = min(self.WIDTH // self.NUM_COLS, self.HEIGHT // self.NUM_ROWS)
         self.COLORS = {
@@ -39,16 +35,21 @@ class MazeGame:
         # Configure doors for each room based on the maze graph
         self._setup_room_doors()
         
-        self.player1 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config)
-        self.player2 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config)
+        self.player1 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config, 'blue', 0)
+        self.player2 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config, 'red', self.NUM_COLS + self.NUM_ROWS)
         self.previous_distance_room = nx.shortest_path_length(self.graph, self.player1.current_room, self.player2.current_room)
         self.previous_distance = 10000
+        self.last_move_time = 0
+        self.move_delay = 200  # Millisecondi tra i movimenti
+        
 
     def _create_rooms(self):
+        tile_size = self.config['tile_size']
         return [Room(c * self.ROOM_SIZE,
                     r * self.ROOM_SIZE,
                     self.ROOM_SIZE,
-                    r * self.NUM_COLS + c)
+                    r * self.NUM_COLS + c,
+                    tile_size)
                 for r in range(self.NUM_ROWS)
                 for c in range(self.NUM_COLS)]
 
@@ -66,80 +67,73 @@ class MazeGame:
         pg.display.flip()
 
     def handle_input(self):
-        keys = pg.key.get_pressed()
-        current_room = self.rooms[self.player1.current_room]
-        
-        if keys[pg.K_UP]:
-            self.player1.move("UP", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        if keys[pg.K_DOWN]:
-            self.player1.move("DOWN", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        if keys[pg.K_LEFT]:
-            self.player1.move("LEFT", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        if keys[pg.K_RIGHT]:
-            self.player1.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room)
+        current_time = pg.time.get_ticks()
+        if current_time - self.last_move_time < self.move_delay:
+            return
 
-        current_room = self.rooms[self.player2.current_room]
-        # muovo il giocatore con le freccette
-        if keys[pg.K_w]:
-            self.player2.move("UP", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        if keys[pg.K_s]:
-            self.player2.move("DOWN", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        if keys[pg.K_a]:
-            self.player2.move("LEFT", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        if keys[pg.K_d]:
-            self.player2.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room)
-        
+        keys = pg.key.get_pressed()
+        moved = False
+
+        # Player 1 movement
+        if any(keys[k] for k in [pg.K_UP, pg.K_DOWN, pg.K_LEFT, pg.K_RIGHT]):
+            # Prendi la current_room CORRETTA del player1
+            current_room_p1 = self.rooms[self.player1.current_room]
+            if keys[pg.K_UP]:
+                self.player1.move("UP", self.NUM_COLS, self.NUM_ROOMS, current_room_p1)
+            if keys[pg.K_DOWN]:
+                self.player1.move("DOWN", self.NUM_COLS, self.NUM_ROOMS, current_room_p1)
+            if keys[pg.K_LEFT]:
+                self.player1.move("LEFT", self.NUM_COLS, self.NUM_ROOMS, current_room_p1)
+            if keys[pg.K_RIGHT]:
+                self.player1.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room_p1)
+            moved = True
+
+        # Player 2 movement
+        if any(keys[k] for k in [pg.K_w, pg.K_s, pg.K_a, pg.K_d]):
+            # Prendi la current_room CORRETTA del player2
+            current_room_p2 = self.rooms[self.player2.current_room]
+            if keys[pg.K_w]:
+                self.player2.move("UP", self.NUM_COLS, self.NUM_ROOMS, current_room_p2)
+            if keys[pg.K_s]:
+                self.player2.move("DOWN", self.NUM_COLS, self.NUM_ROOMS, current_room_p2)
+            if keys[pg.K_a]:
+                self.player2.move("LEFT", self.NUM_COLS, self.NUM_ROOMS, current_room_p2)
+            if keys[pg.K_d]:
+                self.player2.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room_p2)
+            moved = True
+
+        if moved:
+            self.last_move_time = current_time
+            
     def check_collision_between_player(self):
         if self.player1.current_room == self.player2.current_room:
-            distanza_quadrata = (self.player2.pos[0] - self.player1.pos[0]) ** 2 + (self.player2.pos[1] - self.player1.pos[1]) ** 2
-            r_somma_quadrato = (self.player1.size + self.player2.size) ** 2
-            return distanza_quadrata <= r_somma_quadrato
+            return (self.player1.grid_x == self.player2.grid_x and 
+                    self.player1.grid_y == self.player2.grid_y)
         return False
     
     def check_collision_with_wall(self, player):
-        """
-        Check if a player is colliding with a wall in the current room.
-        
-        Args:
-            player: Player object to check for collisions
-            
-        Returns:
-            bool: True if collision with wall detected, False otherwise
-        """
         current_room = self.rooms[player.current_room]
-        room_col = player.current_room % self.NUM_COLS
-        room_row = player.current_room // self.NUM_COLS
         
-        # Calculate absolute position in the screen coordinates
-        abs_x = room_col * self.ROOM_SIZE + player.pos[0]
-        abs_y = room_row * self.ROOM_SIZE + player.pos[1]
+        # Controlla se il giocatore sta cercando di uscire dai bordi
+        if (player.grid_x < 0 or player.grid_x >= current_room.grid_size or
+            player.grid_y < 0 or player.grid_y >= current_room.grid_size):
+            
+            # Determina la direzione del movimento
+            direction = None
+            if player.grid_x < 0:
+                direction = 'left'
+            elif player.grid_x >= current_room.grid_size:
+                direction = 'right'
+            elif player.grid_y < 0:
+                direction = 'top'
+            elif player.grid_y >= current_room.grid_size:
+                direction = 'bottom'
+            
+            # Controlla se c'è una porta valida in quella direzione
+            if direction and not current_room.can_pass_through(player.grid_x, player.grid_y, direction):
+                return True  # Collisione con un muro senza porta
         
-        # Check collision with room boundaries
-        collision = False
-        
-        # Check left wall
-        if player.pos[0] - player.size <= 0:
-            # Check if there's a door and if the player can pass through it
-            if not current_room.can_pass_through((player.pos[0], player.pos[1]), 'left'):
-                collision = True
-        
-        # Check right wall
-        if player.pos[0] + player.size >= self.ROOM_SIZE:
-            if not current_room.can_pass_through((player.pos[0], player.pos[1]), 'right'):
-                collision = True
-        
-        # Check top wall
-        if player.pos[1] - player.size <= 0:
-            if not current_room.can_pass_through((player.pos[0], player.pos[1]), 'top'):
-                collision = True
-        
-        # Check bottom wall
-        if player.pos[1] + player.size >= self.ROOM_SIZE:
-            if not current_room.can_pass_through((player.pos[0], player.pos[1]), 'bottom'):
-                collision = True
-        
-        return collision
-
+        return False
     
     def timer(self, duration_min = 5):
         duration_ticks = duration_min * 60 * 1000
@@ -183,18 +177,12 @@ class MazeGame:
         clock = pg.time.Clock()
         
         while running:
-            if self.check_collision_with_wall(self.player1):
-                print("Muro toccato")
-            if self.player1.is_moving_in_a_step(5000):
-                print("Giocatore 1 muove")
-            else:
-                print("Giocatore 1 non muove")
-
-            if self.player_getting_closer():
-                print("Giocatori si avvicinano")
-            else:
-                print("Giocatori non si avvicinano")
-
+            dt = clock.tick(60)  # Delta time in millisecondi
+        
+            # Aggiorna animazioni player
+            self.player1.update(dt)
+            self.player2.update(dt)
+            
             ret = self.player_changing_room()
             if ret[0]:
                 print("player 1 ha cambiato stanza")
