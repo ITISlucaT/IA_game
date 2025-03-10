@@ -101,10 +101,7 @@ class Room:
 
     def _draw_grid(self, surface, color):
         """Disegna la griglia delle tile nella stanza"""
-        for x in range(0, self.size, self.tile_size):
-            pg.draw.line(surface, color, (self.x + x, self.y), (self.x + x, self.y + self.size))
-        for y in range(0, self.size, self.tile_size):
-            pg.draw.line(surface, color, (self.x, self.y + y), (self.x + self.size, self.y + y))
+
 
 
     def _draw_doors(self, surface, colors: Dict):

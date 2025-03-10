@@ -15,9 +15,7 @@ class MazeGame:
         self.WIDTH = self.config['display']['width']
         self.HEIGHT = self.config['display']['height']
         self.NUM_ROWS = self.config['maze']['min_rows']
-
         self.NUM_COLS = self.config['maze']['min_cols']
-
         self.NUM_ROOMS = self.NUM_ROWS * self.NUM_COLS
         self.ROOM_SIZE = min(self.WIDTH // self.NUM_COLS, self.HEIGHT // self.NUM_ROWS)
         self.COLORS = {
@@ -36,12 +34,11 @@ class MazeGame:
         self._setup_room_doors()
         
         self.player1 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config, 'blue', 0)
-        self.player2 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config, 'red', self.NUM_COLS + self.NUM_ROWS)
+        self.player2 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config, 'red', (self.NUM_COLS * self.NUM_ROWS)-1)
         self.previous_distance_room = nx.shortest_path_length(self.graph, self.player1.current_room, self.player2.current_room)
         self.previous_distance = 10000
         self.last_move_time = 0
         self.move_delay = 200  # Millisecondi tra i movimenti
-        
 
     def _create_rooms(self):
         tile_size = self.config['tile_size']
@@ -56,15 +53,7 @@ class MazeGame:
     def _setup_room_doors(self):
         """Configure doors for each room based on the maze graph."""
         for room in self.rooms:
-            room.setup_doors(self.NUM_COLS, self.NUM_ROWS, self.graph[room.room_number])
-
-    def draw(self):
-        self.screen.fill(self.COLORS['white'])
-        for room in self.rooms:
-            room.draw(self.screen, self.NUM_COLS, self.NUM_ROWS, self.COLORS)
-        self.player1.draw(self.screen, self.NUM_COLS, self.COLORS)
-        self.player2.draw(self.screen, self.NUM_COLS, self.COLORS)
-        pg.display.flip()
+            room.setup_doors(self.NUM_COLS, self.NUM_ROWS, list(self.graph.neighbors(room.room_number)))
 
     def handle_input(self):
         current_time = pg.time.get_ticks()
@@ -74,36 +63,111 @@ class MazeGame:
         keys = pg.key.get_pressed()
         moved = False
 
-        # Player 1 movement
-        if any(keys[k] for k in [pg.K_UP, pg.K_DOWN, pg.K_LEFT, pg.K_RIGHT]):
-            # Prendi la current_room CORRETTA del player1
-            current_room_p1 = self.rooms[self.player1.current_room]
-            if keys[pg.K_UP]:
-                self.player1.move("UP", self.NUM_COLS, self.NUM_ROOMS, current_room_p1)
-            if keys[pg.K_DOWN]:
-                self.player1.move("DOWN", self.NUM_COLS, self.NUM_ROOMS, current_room_p1)
-            if keys[pg.K_LEFT]:
-                self.player1.move("LEFT", self.NUM_COLS, self.NUM_ROOMS, current_room_p1)
-            if keys[pg.K_RIGHT]:
-                self.player1.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room_p1)
-            moved = True
+        # Player 1 movement (ARROW KEYS)
+        moved |= self._handle_player_movement(
+            self.player1, 
+            {
+                'UP': pg.K_UP, 
+                'DOWN': pg.K_DOWN, 
+                'LEFT': pg.K_LEFT, 
+                'RIGHT': pg.K_RIGHT
+            }
+        )
 
-        # Player 2 movement
-        if any(keys[k] for k in [pg.K_w, pg.K_s, pg.K_a, pg.K_d]):
-            # Prendi la current_room CORRETTA del player2
-            current_room_p2 = self.rooms[self.player2.current_room]
-            if keys[pg.K_w]:
-                self.player2.move("UP", self.NUM_COLS, self.NUM_ROOMS, current_room_p2)
-            if keys[pg.K_s]:
-                self.player2.move("DOWN", self.NUM_COLS, self.NUM_ROOMS, current_room_p2)
-            if keys[pg.K_a]:
-                self.player2.move("LEFT", self.NUM_COLS, self.NUM_ROOMS, current_room_p2)
-            if keys[pg.K_d]:
-                self.player2.move("RIGHT", self.NUM_COLS, self.NUM_ROOMS, current_room_p2)
-            moved = True
+        # Player 2 movement (WASD KEYS)
+        moved |= self._handle_player_movement(
+            self.player2, 
+            {
+                'UP': pg.K_w, 
+                'DOWN': pg.K_s, 
+                'LEFT': pg.K_a, 
+                'RIGHT': pg.K_d
+            }
+        )
 
         if moved:
             self.last_move_time = current_time
+
+    def _handle_player_movement(self, player, key_map):
+        """
+        Handle movement for a specific player with given key mappings.
+        
+        Args:
+            player (Player): The player to move
+            key_map (dict): Mapping of movement directions to Pygame key constants
+        
+        Returns:
+            bool: True if movement occurred, False otherwise
+        """
+        keys = pg.key.get_pressed()
+        available_moves = list(self.graph.neighbors(player.current_room))
+        moved = False
+
+        # Up movement
+        if keys[key_map['UP']] and (player.current_room - self.NUM_COLS) in available_moves:
+            self._move_player_between_rooms(player, "UP")
+            moved = True
+        
+        # Down movement
+        if keys[key_map['DOWN']] and (player.current_room + self.NUM_COLS) in available_moves:
+            self._move_player_between_rooms(player, "DOWN")
+            moved = True
+        
+        # Left movement
+        if keys[key_map['LEFT']] and (player.current_room - 1) in available_moves:
+            self._move_player_between_rooms(player, "LEFT")
+            moved = True
+        
+        # Right movement
+        if keys[key_map['RIGHT']] and (player.current_room + 1) in available_moves:
+            self._move_player_between_rooms(player, "RIGHT")
+            moved = True
+
+        return moved
+
+    def _move_player_between_rooms(self, player, direction):
+        """
+        Move player between rooms based on the graph's connections.
+        
+        Args:
+            player (Player): The player to move
+            direction (str): Direction of movement
+        """
+        current_room = self.rooms[player.current_room]
+        
+        # Determine target room based on direction
+        if direction == "UP":
+            target_room = player.current_room - self.NUM_COLS
+        elif direction == "DOWN":
+            target_room = player.current_room + self.NUM_COLS
+        elif direction == "LEFT":
+            target_room = player.current_room - 1
+        elif direction == "RIGHT":
+            target_room = player.current_room + 1
+        
+        # Update player's room and grid position
+        player.current_room = target_room
+        target_room_obj = self.rooms[target_room]
+        
+        # Reset grid position to center of the new room
+        player.grid_x = (target_room_obj.grid_size) // 2
+        player.grid_y = (target_room_obj.grid_size) // 2
+        
+        # Update absolute position
+        player.pos = [
+            player.grid_x * player.tile_size + player.tile_size // 2,
+            player.grid_y * player.tile_size + player.tile_size // 2
+        ]
+        
+        # Mark that the room has changed
+        player.room_changed = True
+    def draw(self):
+        self.screen.fill(self.COLORS['white'])
+        for room in self.rooms:
+            room.draw(self.screen, self.NUM_COLS, self.NUM_ROWS, self.COLORS)
+        self.player1.draw(self.screen, self.NUM_COLS, self.COLORS)
+        self.player2.draw(self.screen, self.NUM_COLS, self.COLORS)
+        pg.display.flip()
             
     def check_collision_between_player(self):
         if self.player1.current_room == self.player2.current_room:

@@ -5,9 +5,9 @@ display:
 tile_size: 32  # dimensione di ogni quadretto in pixel
 
 maze:
-  min_rows: 3
+  min_rows: 4
   max_rows: 7
-  min_cols: 4
+  min_cols: 6
   max_cols: 8
 
 colors:

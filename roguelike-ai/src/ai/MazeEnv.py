@@ -4,6 +4,7 @@ import numpy as np
 import pygame as pg
 from src.core.Game import MazeGame
 import networkx as nx
+import random
 
 class MazeEnv(gym.Env):
     metadata = {'render.modes': ['human', 'rgb_array'], 'render_fps': 60}
@@ -11,102 +12,183 @@ class MazeEnv(gym.Env):
     def __init__(self):
         super(MazeEnv, self).__init__()
         
-        # Inizializza il gioco
+        # Initialize the game
         self.game = MazeGame()
         
-        # Definisci lo spazio delle azioni (discreto)
+        # Define action space (discrete)
         self.action_space = spaces.Discrete(4)  # 0: UP, 1: DOWN, 2: LEFT, 3: RIGHT
         
-        # Definisci lo spazio delle osservazioni (stato)
-        # Esempio: posizione del giocatore, posizione del target, stato delle porte
+        # Define observation space
+        # Now using more comprehensive state representation
         self.observation_space = spaces.Box(
-            low=0, high=1, shape=(self.game.NUM_ROOMS * 2 + 4,), dtype=np.float32
+            low=0, high=self.game.NUM_ROOMS - 1, 
+            shape=(2,),  # Player 1 and Player 2 current rooms
+            dtype=np.int32
         )
         
-        # Inizializza lo stato
+        # Initialize the state
         self.state = self._get_state()
         
-        # Variabili per il rendering
+        # Rendering variables
         self.screen = None
         self.clock = None
 
     def _get_state(self):
         """
-        Ottieni lo stato corrente del gioco.
-        Restituisce un array numpy che rappresenta lo stato.
+        Get the current state of the game.
+        Returns a numpy array representing the current rooms of both players.
         """
-        # Esempio: posizione del giocatore, posizione del target, stato delle porte
-        player_room = self.game.player1.current_room
-        target_room = self.game.player2.current_room
-        
-
-        # Combina tutto in un unico array
-        state = np.array([player_room, target_room], dtype=np.float32)
-        return state
+        return np.array([
+            self.game.player1.current_room, 
+            self.game.player2.current_room
+        ], dtype=np.int32)
 
     def reset(self, seed=None, options=None):
         """
-        Resetta l'ambiente e restituisce lo stato iniziale.
+        Reset the environment and return the initial state.
         """
         super().reset(seed=seed)
         
-        # Resetta il gioco
+        # Reset the game
         self.game = MazeGame()
         
-        # Ottieni lo stato iniziale
+        # Get initial state
         self.state = self._get_state()
         
         return self.state, {}
 
     def step(self, action):
         """
-        Esegue un'azione e restituisce:
-        - next_state: il nuovo stato
-        - reward: la ricompensa ottenuta
-        - done: se l'episodio è terminato
-        - info: informazioni aggiuntive
+        Execute an action and return:
+        - next_state: the new state
+        - reward: the reward obtained
+        - done: if the episode is terminated
+        - info: additional information
         """
-        # Esegui l'azione nel gioco
-        self._take_action(action)
+        # Execute the action for player1
+        self._move_player(self.game.player1, action)
         
-        # Ottieni il nuovo stato
+        # Move player2 using a separate strategy 
+        self._move_player2()
+        
+        # Get the new state
         next_state = self._get_state()
+        print(next_state)
         
-        # Calcola la ricompensa
+        # Calculate the reward
         reward = self._get_reward()
         
-        # Controlla se l'episodio è terminato
+        # Check if the episode is terminated
         done = self.game.check_collision_between_player() or self.game.timer(1)
         
-        # Info aggiuntive (opzionale)
+        # Additional info (optional)
         info = {}
         
         return next_state, reward, done, False, info
 
-    def _take_action(self, action):
+    def _move_player(self, player, action):
         """
-        Esegue l'azione nel gioco.
+        Execute movement for a given player based on the action.
         """
-        # Mappa l'azione a una direzione
+        # Map the action to a direction
         action_map = {
             0: "UP",
-            1: "DOWN",
-            2: "LEFT",
+            1: "DOWN", 
+            2: "LEFT", 
             3: "RIGHT"
         }
         direction = action_map[action]
         
-        # Esegui il movimento del giocatore
-        current_room = self.game.rooms[self.game.player1.current_room]
-        self.game.player1.move(direction, self.game.NUM_COLS, self.game.NUM_ROOMS, current_room)
+        # Get available moves from the current room
+        available_moves = list(self.game.graph.neighbors(player.current_room))
+        
+        # Determine target room based on direction
+        target_room = None
+        if direction == "UP" and (player.current_room - self.game.NUM_COLS) in available_moves:
+            target_room = player.current_room - self.game.NUM_COLS
+        elif direction == "DOWN" and (player.current_room + self.game.NUM_COLS) in available_moves:
+            target_room = player.current_room + self.game.NUM_COLS
+        elif direction == "LEFT" and (player.current_room - 1) in available_moves:
+            target_room = player.current_room - 1
+        elif direction == "RIGHT" and (player.current_room + 1) in available_moves:
+            target_room = player.current_room + 1
+        
+        # If a valid move is found, move the player
+        if target_room is not None:
+            # Update player's room
+            player.current_room = target_room
+            
+            # Reset grid position to center of the new room
+            target_room_obj = self.game.rooms[target_room]
+            player.grid_x = (target_room_obj.grid_size) // 2
+            player.grid_y = (target_room_obj.grid_size) // 2
+            
+            # Update absolute position
+            player.pos = [
+                player.grid_x * player.tile_size + player.tile_size // 2,
+                player.grid_y * player.tile_size + player.tile_size // 2
+            ]
+
+    def _move_player2(self):
+        """
+        Move player2 using a strategy to approach player1.
+        """
+        player1 = self.game.player1
+        player2 = self.game.player2
+        
+        # Find the shortest path to player1's room
+        try:
+            path = nx.shortest_path(
+                self.game.graph, 
+                player2.current_room, 
+                player1.current_room
+            )
+            
+            # If path exists and is longer than 1 (not same room)
+            if len(path) > 1:
+                # Move to the next room in the path
+                target_room = path[1]
+                
+                # Update player's room
+                player2.current_room = target_room
+                
+                # Reset grid position to center of the new room
+                target_room_obj = self.game.rooms[target_room]
+                player2.grid_x = (target_room_obj.grid_size) // 2
+                player2.grid_y = (target_room_obj.grid_size) // 2
+                
+                # Update absolute position
+                player2.pos = [
+                    player2.grid_x * player2.tile_size + player2.tile_size // 2,
+                    player2.grid_y * player2.tile_size + player2.tile_size // 2
+                ]
+        except nx.NetworkXNoPath:
+            # If no path exists, choose a random neighboring room
+            available_moves = list(self.game.graph.neighbors(player2.current_room))
+            if available_moves:
+                target_room = random.choice(available_moves)
+                
+                # Update player's room
+                player2.current_room = target_room
+                
+                # Reset grid position to center of the new room
+                target_room_obj = self.game.rooms[target_room]
+                player2.grid_x = (target_room_obj.grid_size) // 2
+                player2.grid_y = (target_room_obj.grid_size) // 2
+                
+                # Update absolute position
+                player2.pos = [
+                    player2.grid_x * player2.tile_size + player2.tile_size // 2,
+                    player2.grid_y * player2.tile_size + player2.tile_size // 2
+                ]
 
     def _get_reward(self):
         """
-        Calcola la ricompensa in base allo stato corrente.
+        Calculate the reward based on the current state.
         """
         reward = 0
         
-        # Ricompensa positiva per avvicinarsi al target
+        # Reward for getting closer to the target
         previous_distance = self.game.previous_distance_room
         current_distance = nx.shortest_path_length(
             self.game.graph, 
@@ -115,30 +197,29 @@ class MazeEnv(gym.Env):
         )
         
         if current_distance < previous_distance:
-            reward += 1  # Ricompensa per avvicinarsi
-        # elif current_distance > previous_distance:
-        #     reward -= 1  # Penalità per allontanarsi
+            reward += 1  # Reward for getting closer
         
-        # Ricompensa per raggiungere il target
+        # Reward for reaching the target
         if self.game.check_collision_between_player():
             reward += 10
         
-        # Penalità per il tempo
-        reward -= 0.1  # Piccola penalità per ogni passo
-
+        # Small time penalty
+        reward -= 0.1
+        
+        # Movement metrics
         metrics = self.game.player1.get_movement_metrics()
         
         # Penalize idle time
-        idle_penalty = -0.1 * metrics['idle_time']
+        # reward += -0.1 * metrics['idle_time']
         
         # Reward movement
-        reward  += 0.5 if metrics['is_moving'] else -0.2
+        reward += 0.5 if metrics['is_moving'] else -0.2
         
         return reward
 
     def render(self, mode='human'):
         """
-        Renderizza l'ambiente.
+        Render the environment.
         """
         if mode == 'human':
             if self.screen is None:
@@ -155,7 +236,7 @@ class MazeEnv(gym.Env):
 
     def close(self):
         """
-        Chiude l'ambiente e libera le risorse.
+        Close the environment and free resources.
         """
         if self.screen is not None:
             pg.quit()

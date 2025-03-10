@@ -36,76 +36,89 @@ class MazeGenerator:
         return graph
     
 
-    def generate_grid_graph(self, rows, cols):
-        # Creare un grafo vuoto
+    def generate_grid_graph(self, rows=4, cols=6):
+        """
+        Generate a 4x6 grid graph with static edge removals based on an internal configuration.
+        
+        Returns:
+            nx.Graph: A 4x6 grid graph with predetermined edges removed
+        """
+        import networkx as nx
+        
+        # Create an empty graph
         G = nx.Graph()
         
-        # Generare nodi in una struttura a griglia
+        # Generate nodes in a grid structure (4 rows x 6 columns)
         for r in range(rows):
             for c in range(cols):
                 node_id = r * cols + c
                 G.add_node(node_id)
         
-        # Dizionario per memorizzare i nodi adiacenti
+        # Dictionary to store adjacent nodes
         adjacent_nodes = {}
         
-        # Aggiungere connessioni tra nodi adiacenti
+        # Add connections between adjacent nodes
         for r in range(rows):
             for c in range(cols):
                 current_node = r * cols + c
                 adjacent = []
                 
-                # Connessione destra
+                # Right connection
                 if c < cols - 1:
                     right_node = current_node + 1
                     G.add_edge(current_node, right_node)
                     adjacent.append(right_node)
                 
-                # Connessione sinistra
+                # Left connection
                 if c > 0:
                     left_node = current_node - 1
                     adjacent.append(left_node)
                 
-                # Connessione sotto
+                # Down connection
                 if r < rows - 1:
                     down_node = current_node + cols
                     G.add_edge(current_node, down_node)
                     adjacent.append(down_node)
                 
-                # Connessione sopra
+                # Up connection
                 if r > 0:
                     up_node = current_node - cols
                     adjacent.append(up_node)
                 
-                # Memorizzare i nodi adiacenti
+                # Store adjacent nodes
                 adjacent_nodes[current_node] = adjacent
         
-        # Rimuovere connessioni in modo selettivo
-        for node in list(G.nodes()):
-            # Ottenere i vicini attuali
-            current_neighbors = list(G.neighbors(node))
-            
-            # Numero massimo di connessioni da rimuovere
-            max_removals = len(current_neighbors)
-            
-            # Numero casuale di connessioni da rimuovere
-            num_removals = random.randint(0, 1)#max_removals)
-            
-            # Tentativi di rimozione
-            for _ in range(num_removals):
-                if len(current_neighbors) > 1:  # Assicurarsi di mantenere almeno una connessione
-                    # Scegliere un vicino casuale da rimuovere
-                    neighbor_to_remove = random.choice(current_neighbors)
+        # Predefined removal configuration tailored for a 4x6 grid
+        # Format: {node_id: [neighbor_ids_to_disconnect]}
+        removal_config = {
+            0: [1],         # Top row, first node
+            2: [8],         # Top row, third node
+            5: [11],        # Top row, last node
+            6: [7, 12],     # Second row, first node
+            9: [10, 15],    # Second row, fourth node
+            13: [14],       # Third row, second node
+            17: [16, 23],   # Third row, last node
+            19: [13],       # Fourth row, second node
+            21: [15],       # Fourth row, fourth node
+            22: [21]        # Fourth row, fifth node
+        }
+        
+        # Remove edges according to the predefined configuration
+        for node, neighbors_to_remove in removal_config.items():
+            for neighbor in neighbors_to_remove:
+                # Check if node and neighbor are within the grid boundaries
+                if (node < rows * cols and neighbor < rows * cols and 
+                    node >= 0 and neighbor >= 0 and 
+                    G.has_edge(node, neighbor)):
                     
-                    # Simulare la rimozione e verificare la connettività
+                    # Create a temporary graph to check connectivity
                     G_temp = G.copy()
-                    G_temp.remove_edge(node, neighbor_to_remove)
+                    G_temp.remove_edge(node, neighbor)
                     
-                    # Verificare che la rimozione non isoli nessun nodo
+                    # Only remove the edge if it doesn't disconnect the graph
                     if nx.is_connected(G_temp):
-                        G = G_temp
-                        current_neighbors.remove(neighbor_to_remove)
-
+                        G.remove_edge(node, neighbor)
+        
         return G
 
 
@@ -113,32 +126,32 @@ class MazeGenerator:
 
 
 
-    def get_neighbors(self, room_id: int) -> List[int]:
-        """
-        Ottiene le stanze adiacenti per una data stanza.
-        Args:
-            room_id (int): ID della stanza
-        Returns:
-            List[int]: Lista degli ID delle stanze adiacenti
-        """
-        neighbors = []
-        row = room_id // self.num_cols
-        col = room_id % self.num_cols
+        def get_neighbors(self, room_id: int) -> List[int]:
+            """
+            Ottiene le stanze adiacenti per una data stanza.
+            Args:
+                room_id (int): ID della stanza
+            Returns:
+                List[int]: Lista degli ID delle stanze adiacenti
+            """
+            neighbors = []
+            row = room_id // self.num_cols
+            col = room_id % self.num_cols
 
-        # Controlla stanza a sinistra
-        if col > 0:
-            neighbors.append(room_id - 1)
-        
-        # Controlla stanza a destra
-        if col < self.num_cols - 1:
-            neighbors.append(room_id + 1)
-        
-        # Controlla stanza sopra
-        if row > 0:
-            neighbors.append(room_id - self.num_cols)
-        
-        # Controlla stanza sotto
-        if row < self.num_rows - 1:
-            neighbors.append(room_id + self.num_cols)
+            # Controlla stanza a sinistra
+            if col > 0:
+                neighbors.append(room_id - 1)
+            
+            # Controlla stanza a destra
+            if col < self.num_cols - 1:
+                neighbors.append(room_id + 1)
+            
+            # Controlla stanza sopra
+            if row > 0:
+                neighbors.append(room_id - self.num_cols)
+            
+            # Controlla stanza sotto
+            if row < self.num_rows - 1:
+                neighbors.append(room_id + self.num_cols)
 
-        return neighbors
+            return neighbors
