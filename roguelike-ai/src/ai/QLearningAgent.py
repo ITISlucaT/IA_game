@@ -49,6 +49,7 @@ class QLearningAgent:
         """
         player_room = max(0, min(int(state[0]), self.num_rooms - 1))
         target_room = max(0, min(int(state[1]), self.num_rooms - 1))
+        print(f"player_room = {player_room}, target_room = {target_room}")
         return (player_room, target_room)
 
     def train(self, num_episodes=200, max_steps_per_episode=200):

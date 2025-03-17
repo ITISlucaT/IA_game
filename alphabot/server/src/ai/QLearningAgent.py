@@ -160,7 +160,7 @@ class QLearningAgent:
         return test_rewards
     
     def get_action(self, state):
-        print(self.q_table[(0, 12)])
+        print(self.q_table[state])
         return np.argmax(self.q_table[state])
     
 

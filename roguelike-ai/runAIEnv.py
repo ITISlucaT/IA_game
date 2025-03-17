@@ -8,11 +8,11 @@ def main():
     agent = QLearningAgent(env)
     
     # Option 1: Train and save the model
-    #agent.train(num_episodes=1000)
-    #agent.save_model('maze_q_learning_model.pkl')
+    agent.train(num_episodes=1000)
+    agent.save_model('maze_q_learning_model.pkl')
     
     # Option 2: Load a pre-existing model and test
-    agent.load_model('maze_q_learning_model.pkl')
+    #agent.load_model('maze_q_learning_model.pkl')
     
     # Perform multiple test runs
     test_rewards = agent.test(num_tests=10)
