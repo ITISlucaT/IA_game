@@ -14,6 +14,7 @@ def main():
     N_ROWS, N_COLS = client.recv(4096).decode("utf-8").split(",")
     N_ROWS = int(N_ROWS)
     N_COLS = int(N_COLS)
+    angle = 0
     
     while True:
         # Invio la posizione attuale
@@ -24,6 +25,9 @@ def main():
         direction = client.recv(4096).decode("utf-8")
         print(f"direzione: {direction}, stanza: {current_room}")
         
+        # definisco movimento in base alla posizione dell'alphabot
+        direction, angle = dir_from_angle(direction=direction, angle=angle)
+
         # Eseguo i movimenti
         handle_movements(direction=direction)
         line_tracker()
