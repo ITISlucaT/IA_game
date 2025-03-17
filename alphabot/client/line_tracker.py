@@ -1,3 +1,4 @@
+import RPi.GPIO as GPIO
 from AlphaBot2 import AlphaBot2
 from TRSensors import TRSensor
 import time
@@ -12,7 +13,7 @@ def line_tracker():
 	print(Sensors)
 	direction = np.array(Sensors) < SOGLIE
 
-	while direction[0] and direction[1] and direction[2] and direction[3] and direction[4]:
+	while not(direction[0] and direction[1] and direction[2] and direction[3] and direction[4]):
 		Sensors = TR.AnalogRead()
 		print(Sensors)
 		direction = np.array(Sensors) < SOGLIE
