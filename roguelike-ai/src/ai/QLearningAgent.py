@@ -142,6 +142,8 @@ class QLearningAgent:
                 # Execute action
                 next_state, reward, done, truncated, info = self.env.step(action)
                 next_state = self.discretize_state(next_state)
+                print(f"State: {state}")
+                print(f"\nStep {action}")
                 
                 state = next_state
                 total_reward += reward

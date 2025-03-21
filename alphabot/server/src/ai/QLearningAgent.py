@@ -160,10 +160,9 @@ class QLearningAgent:
         return test_rewards
     
     def get_action(self, state):
-        print(self.q_table[state])
+        print(self.q_table[0, 23])
         return np.argmax(self.q_table[state])
     
-
 
     def save_model(self, filename='q_learning_model.pkl'):
         """

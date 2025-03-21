@@ -16,7 +16,7 @@ class MazeEnv(gym.Env):
         self.game = MazeGame()
         
         # Define action space (discrete)
-        self.action_space = spaces.Discrete(4)  # 0: UP, 1: DOWN, 2: LEFT, 3: RIGHT
+        self.action_space = spaces.Discrete(5)  # 0: UP, 1: DOWN, 2: LEFT, 3: RIGHT, 4: STOP
         
         # Define observation space
         # Now using more comprehensive state representation
@@ -95,7 +95,8 @@ class MazeEnv(gym.Env):
             0: "UP",
             1: "DOWN", 
             2: "LEFT", 
-            3: "RIGHT"
+            3: "RIGHT",
+            4: "STOP"
         }
         direction = action_map[action]
         

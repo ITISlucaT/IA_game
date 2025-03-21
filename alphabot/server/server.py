@@ -8,7 +8,10 @@ def main():
     agent = QLearningAgent(env)
     # Load trained model
     agent.load_model('maze_q_learning_model.pkl')
+
+    print(agent.q_table[0, 23])
     
+    get_direction(agent=agent)
     host='0.0.0.0'
     port=6969
     server_address = (host, port)
@@ -35,7 +38,7 @@ def main():
                 
             try:
                 robot_current_room = int(robot_current_room)
-                direction = get_direction(agent=agent, state=(0, robot_current_room))
+                direction = get_direction(agent=agent, state=(23, robot_current_room))
                 print(f"direction: {direction}")
                 
                 # Invio la direzione al client
@@ -64,12 +67,12 @@ def get_direction(agent, state = (0, 23)):
             0: "UP",
             1: "DOWN", 
             2: "LEFT", 
-            3: "RIGHT"
+            3: "RIGHT",
+            4: "STOP"
         }
     direction = action_map[action]
     
     return direction
-
 
 if __name__ == "__main__":
     main()
