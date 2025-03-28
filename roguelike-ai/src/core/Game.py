@@ -32,9 +32,9 @@ class MazeGame:
         
         # Configure doors for each room based on the maze graph
         self._setup_room_doors()
-        
-        self.player1 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config, 'blue', 0)
-        self.player2 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config, 'red', (self.NUM_COLS * self.NUM_ROWS)-1)
+        player1_room, player2_room = np.random.choice(np.arange(0, self.NUM_ROOMS ), size=2, replace=False)
+        self.player1 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config, 'blue', player1_room)
+        self.player2 = Player(self.ROOM_SIZE, self.NUM_ROOMS, self.config, 'red', player2_room)
         self.previous_distance_room = nx.shortest_path_length(self.graph, self.player1.current_room, self.player2.current_room)
         self.previous_distance = 10000
         self.last_move_time = 0

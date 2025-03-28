@@ -3,21 +3,55 @@ from AlphaBot2 import AlphaBot2
 from TRSensors import TRSensor
 import time
 import numpy as np
+from scipy.stats import iqr
 
 TR = TRSensor()
 Ab = AlphaBot2()
 
-SOGLIE = np.array([300, 10, 300, 350, 300])
-def line_tracker():
+def mediaValori(listValues):#accetta in input l'array del dizionario
+
+    #TOR PARTE DI CALCOLO DEI DATI
+    moltiplicatore = 0.1
+    misurazioni = np.array(listValues)
+    q1 = np.percentile(misurazioni, 45) 
+    q3 = np.percentile(misurazioni, 55) 
+
+    iqr_value = iqr(misurazioni) 
+
+    soglia_inf = q1 - moltiplicatore * iqr_value 
+    soglia_sup = q3 + moltiplicatore * iqr_value
+
+    #li filtro
+    misurazioni_filtrate = misurazioni[(misurazioni >= soglia_inf) & (misurazioni <= soglia_sup)]
+
+    return np.mean(misurazioni_filtrate, dtype=np.int64) #faccio la media tra tutti i valori dell'array
+
+def calibration():
+	input("Quando mi hai messo sul nero batti invio")
+	inizio = time.time()
+	limit = []
+	while time.time() - inizio < 3:
+		Sensors = TR.AnalogRead()
+		limit.append(Sensors)
+
+	limit = np.array(limit)
+	mean_values = []
+	for i in range(len(limit[0])):
+		mean_values.append(mediaValori(limit[::,i])+ 60)
+	return mean_values
+
+
+
+def line_tracker(SOGLIE):
 	Sensors = TR.AnalogRead()
 	print(Sensors)
 	direction = np.array(Sensors) < SOGLIE
 
 	while not(direction[0] and direction[1] and direction[2] and direction[3] and direction[4]):
 		Sensors = TR.AnalogRead()
-		print(Sensors)
+		#print(Sensors)
 		direction = np.array(Sensors) < SOGLIE
-		print(direction)
+		#print(direction)
 		if direction[0] or direction[1]:
 			Ab.setMotor(0,-30)
 		elif direction[3] or direction[4]:
@@ -97,3 +131,9 @@ def dir_from_angle(direction, angle):
 			ret == "LEFT"
 			angle = 180
 	return ret, angle
+
+
+	
+		
+	
+	

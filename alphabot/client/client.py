@@ -6,15 +6,18 @@ global N_COLS
 
 def main():
     global N_COLS, N_ROWS
-    current_room = 23  # É L'ALPHABOT 1
+    current_room = 0  # É L'ALPHABOT 1
     address = ("192.168.1.138", 6969)
+    SOGLIE = calibration()
+    print(f"calibrazione fatta SOGLIE: {SOGLIE}")
     client = s.socket(s.AF_INET, s.SOCK_STREAM)
     client.connect(address)
     
     N_ROWS, N_COLS = client.recv(4096).decode("utf-8").split(",")
     N_ROWS = int(N_ROWS)
     N_COLS = int(N_COLS)
-    angle = 0
+
+    angle = 180
     
     while True:
         # Invio la posizione attuale
@@ -30,7 +33,7 @@ def main():
 
         # Eseguo i movimenti
         handle_movements(direction=direction)
-        line_tracker()
+        line_tracker(SOGLIE)
         
         current_room = calculate_room_number(direction, current_room)
         

@@ -148,6 +148,7 @@ class QLearningAgent:
                 total_reward += reward
                 steps += 1
                 time.sleep(1)
+                print(f"state={state} reward={reward}")
                 # Render if specified
                 if render:
                     self.env.render()
@@ -160,7 +161,7 @@ class QLearningAgent:
         return test_rewards
     
     def get_action(self, state):
-        print(self.q_table[0, 23])
+        print(self.q_table[state])
         return np.argmax(self.q_table[state])
     
 
