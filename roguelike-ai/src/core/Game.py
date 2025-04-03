@@ -29,7 +29,7 @@ class MazeGame:
         self.graph = self.maze_generator.generate_grid_graph(self.NUM_ROWS, self.NUM_COLS)
         self.rooms = self._create_rooms()
         self.size = self.NUM_ROOMS * self.ROOM_SIZE
-        
+        #print(self.maze_generator.get_neighbors(11))
         # Configure doors for each room based on the maze graph
         self._setup_room_doors()
         player1_room, player2_room = np.random.choice(np.arange(0, self.NUM_ROOMS ), size=2, replace=False)
@@ -39,6 +39,7 @@ class MazeGame:
         self.previous_distance = 10000
         self.last_move_time = 0
         self.move_delay = 200  # Millisecondi tra i movimenti
+        self.unauthorized_movement = False
 
     def _create_rooms(self):
         tile_size = self.config['tile_size']
@@ -62,9 +63,10 @@ class MazeGame:
 
         keys = pg.key.get_pressed()
         moved = False
+        unauthorized_movement = False  # Nuova variabile per tenere traccia
 
         # Player 1 movement (ARROW KEYS)
-        moved |= self._handle_player_movement(
+        moved_p1, unauthorized_p1 = self._handle_player_movement(
             self.player1, 
             {
                 'UP': pg.K_UP, 
@@ -73,9 +75,16 @@ class MazeGame:
                 'RIGHT': pg.K_RIGHT
             }
         )
+        moved |= moved_p1
+        unauthorized_movement |= unauthorized_p1  # OR per mantenere il flag
+
+        # Check unauthorized movement for Player 1
+        available_moves_p1 = list(self.graph.neighbors(self.player1.current_room))
+        # if not self.check_unauthorized_movement(self.player1, available_moves_p1):
+        #     unauthorized_movement = True
 
         # Player 2 movement (WASD KEYS)
-        moved |= self._handle_player_movement(
+        moved_p2, unauthorized_p2 = self._handle_player_movement(
             self.player2, 
             {
                 'UP': pg.K_w, 
@@ -84,9 +93,19 @@ class MazeGame:
                 'RIGHT': pg.K_d
             }
         )
+        moved |= moved_p2
+        unauthorized_movement |= unauthorized_p2  # OR per mantenere il flag
+
+        # Check unauthorized movement for Player 2
+        available_moves_p2 = list(self.graph.neighbors(self.player2.current_room))
+        # if not self.check_unauthorized_movement(self.player2, available_moves_p2):
+        #     unauthorized_movement = True
 
         if moved:
             self.last_move_time = current_time
+        
+        self.unauthorized_movement = unauthorized_movement
+
 
     def _handle_player_movement(self, player, key_map):
         """
@@ -97,33 +116,52 @@ class MazeGame:
             key_map (dict): Mapping of movement directions to Pygame key constants
         
         Returns:
-            bool: True if movement occurred, False otherwise
+            tuple: (bool: movement occurred, bool: unauthorized movement detected)
         """
         keys = pg.key.get_pressed()
         available_moves = list(self.graph.neighbors(player.current_room))
         moved = False
+        unauthorized_movement = False
 
         # Up movement
-        if keys[key_map['UP']] and (player.current_room - self.NUM_COLS) in available_moves:
+        if keys[key_map['UP']]:
             self._move_player_between_rooms(player, "UP")
             moved = True
         
         # Down movement
-        if keys[key_map['DOWN']] and (player.current_room + self.NUM_COLS) in available_moves:
+        if keys[key_map['DOWN']]:
             self._move_player_between_rooms(player, "DOWN")
             moved = True
         
         # Left movement
-        if keys[key_map['LEFT']] and (player.current_room - 1) in available_moves:
+        if keys[key_map['LEFT']]:
             self._move_player_between_rooms(player, "LEFT")
             moved = True
         
         # Right movement
-        if keys[key_map['RIGHT']] and (player.current_room + 1) in available_moves:
+        if keys[key_map['RIGHT']]:
             self._move_player_between_rooms(player, "RIGHT")
             moved = True
 
-        return moved
+        # Check unauthorized movement
+        # if self.check_unauthorized_movement(player, available_moves):
+        #     unauthorized_movement = True
+
+        return moved, unauthorized_movement
+
+
+    # def check_unauthorized_movement(self, player, available_moves):
+    #     """
+    #     Check if the player is trying to move to an unauthorized room.
+        
+    #     Args:
+    #         player (Player): The player to check
+    #         available_moves (list): List of available moves for the player
+        
+    #     Returns:
+    #         bool: True if the move is unauthorized, False otherwise
+    #     """
+    #     return player.current_room not in available_moves
 
     def _move_player_between_rooms(self, player, direction):
         """
@@ -144,6 +182,15 @@ class MazeGame:
             target_room = player.current_room - 1
         elif direction == "RIGHT":
             target_room = player.current_room + 1
+        print(self.graph)
+        # Validate target room index
+        if target_room not in self.maze_generator.get_neighbors(player.current_room):
+            return  # Prevent moving to an invalid room
+        if target_room in self.graph.neighbors(player.current_room):
+            print("authorized")
+        else:
+            print("Unauthorized")
+              
         
         # Update player's room and grid position
         player.current_room = target_room
@@ -158,7 +205,7 @@ class MazeGame:
             player.grid_x * player.tile_size + player.tile_size // 2,
             player.grid_y * player.tile_size + player.tile_size // 2
         ]
-        
+        # self.check_last_move_authorization() 
         # Mark that the room has changed
         player.room_changed = True
     def draw(self):
@@ -178,7 +225,7 @@ class MazeGame:
     def check_collision_with_wall(self, player):
         current_room = self.rooms[player.current_room]
         
-        # Controlla se il giocatore sta cercando di uscire dai bordi
+        # Check if the player is trying to move outside the borders
         if (player.grid_x < 0 or player.grid_x >= current_room.grid_size or
             player.grid_y < 0 or player.grid_y >= current_room.grid_size):
             
@@ -229,6 +276,10 @@ class MazeGame:
                 self.previous_distance = distanza_attuale
                 return False
             
+    def player_doing_unauthorized_move(self):
+        
+        return self.unauthorized_movement
+            
     def player_changing_room(self):
         ret = (self.player1.room_changed, self.player2.room_changed)
         self.player1.room_changed = False
@@ -236,17 +287,48 @@ class MazeGame:
         return ret
 
 
+    # def check_last_move_authorization(self):
+    #     """
+    #     Check if the last move made by the player was authorized.
+    #     """
+       
+    #     available_moves = list(self.graph.neighbors(self.player1.current_room))
+    #     if self.check_unauthorized_movement(self.player1, available_moves):
+    #         print(f"Player 1 in room {self.player1.current_room} made an unauthorized move.")
+        
+    #     print(f"Player 1 available moves: {available_moves}")
+
+
+    #     available_moves = list(self.graph.neighbors(self.player2.current_room))
+    #     if self.check_unauthorized_movement(self.player2, available_moves):
+    #         print(f"Player 2 in room {self.player2.current_room} made an unauthorized move.")
+
+
     def run(self):
         running = True
         clock = pg.time.Clock()
+        print(self.player1.check_unauthorized_movement(list(self.graph.neighbors(self.player1.current_room))))
         
         while running:
-            dt = clock.tick(60)  # Delta time in millisecondi
+            dt = clock.tick(60)  # Delta time in milliseconds
         
-            # Aggiorna animazioni player
+            # Update player animations
             self.player1.update(dt)
             self.player2.update(dt)
-            
+
+
+            # print(f"[DEBUG]pl1 available move")
+            # print(list(self.graph.neighbors(self.player1.current_room)))
+            # print(f"[DEBUG]pl2 available move")
+            # print(list(self.graph.neighbors(self.player2.current_room)))
+
+
+            # if self.player1.check_last_move_authorization(list(self.graph.neighbors(self.player1.current_room))):
+            #     print(f"Player 1 in room {self.player1.current_room} made an unauthorized move")
+            # if self.player2.check_last_move_authorization(list(self.graph.neighbors(self.player2.current_room))):
+            #     print(f"Player 2 in room {self.player2.current_room} made an unauthorized move")
+
+
             ret = self.player_changing_room()
             if ret[0]:
                 print("player 1 ha cambiato stanza")
@@ -262,13 +344,9 @@ class MazeGame:
             if self.timer(1):
                 print("game lost")
                 running = False 
-            # Check if player1 has reached player2 based on their positions x(Player.pos[0]) and y(Player.pos[1]), considering their size
-            # if (abs(self.player1.pos[0] - self.player2.pos[0]) <= self.player1.size and abs(self.player1.pos[1] - self.player2.pos[1]) <= self.player1.size):
-            #     print("game winned")
-            #     running = False
-            
 
             self.handle_input()
+            
             self.draw()
             clock.tick(60)  # Limit to 60 FPS
             

@@ -32,6 +32,13 @@ class Player:
         self.idle_time = 0
         self.last_position = self.pos.copy()
 
+    def track_unauthorized_move(self):
+        """
+        Track an unauthorized move for the player.
+        """
+        
+        print(f"Unauthorized move detected for player in room {self.current_room}")
+
     def draw(self, surface, num_cols: int, colors: Dict):
         room_row = self.current_room // num_cols
         room_col = self.current_room % num_cols
@@ -56,7 +63,7 @@ class Player:
             new_grid_x += 1
             target_direction = 'right'
 
-        # Controlla se il movimento è all'interno della stanza
+        # Check if the movement is within the room boundaries
         grid_size = current_room.grid_size
         if 0 <= new_grid_x < grid_size and 0 <= new_grid_y < grid_size:
             self.grid_x = new_grid_x
@@ -150,6 +157,37 @@ class Player:
                 start_y = self.target_pos[1] * self.tile_size + self.tile_size//2
                 self.pos[0] = start_x + (self.grid_x - self.target_pos[0]) * self.tile_size * (self.move_progress/100)
                 self.pos[1] = start_y + (self.grid_y - self.target_pos[1]) * self.tile_size * (self.move_progress/100)
+
+    def check_last_move_authorization(self, available_moves):
+        print(self)
+        print(available_moves)
+        if self.check_unauthorized_movement(available_moves):
+            print(f"Player {self.player_color} in room {self.current_room} made an unauthorized move.") 
+
+    def check_unauthorized_movement(self, available_moves):
+        """
+        Check if the player is trying to move to an unauthorized room.
+        
+        Args:
+            available_moves (list): List of available moves for the player
+        
+        Returns:
+            bool: True if the move is unauthorized, False otherwise
+        """
+        return self.current_room not in available_moves
+
+    def is_last_move_authorized(self, last_move, available_moves):
+        """
+        Check if the last move made by the player is authorized.
+        
+        Args:
+            last_move (str): The last move made by the player
+            available_moves (list): List of available moves for the player
+        
+        Returns:
+            bool: True if the last move is authorized, False otherwise
+        """
+        return last_move in available_moves
 
 def are_players_near(player1: Player, player2: Player) -> bool:
     # Calcola la distanza tra i due giocatori

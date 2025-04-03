@@ -76,7 +76,7 @@ class MazeEnv(gym.Env):
         print(next_state)
         
         # Calculate the reward
-        reward = self._get_reward()
+        reward = self._get_reward(action)
         
         # Check if the episode is terminated
         done = self.game.check_collision_between_player() or self.game.timer(1)
@@ -182,7 +182,7 @@ class MazeEnv(gym.Env):
                     player2.grid_y * player2.tile_size + player2.tile_size // 2
                 ]
 
-    def _get_reward(self):
+    def _get_reward(self, action):
         """
         Calculate the reward based on the current state.
         """
@@ -214,8 +214,41 @@ class MazeEnv(gym.Env):
         
         # Reward movement
         reward += 0.5 if metrics['is_moving'] else -0.2
+
+        if self.unauthorized_moves(action=action, player=self.game.player1):
+            reward -= 30
+        elif self.unauthorized_moves(action=action, player=self.game.player2):
+            reward -= 30
+              
         
         return reward
+    
+    def unauthorized_moves(self, action, player):
+        action_map = {
+            0: "UP",
+            1: "DOWN", 
+            2: "LEFT", 
+            3: "RIGHT",
+            4: "STOP"
+        }
+        direction = action_map[action]
+
+        if direction == "UP":
+            target_room = player.current_room - self.game.NUM_COLS
+        elif direction == "DOWN":
+            target_room = player.current_room + self.game.NUM_COLS
+        elif direction == "LEFT":
+            target_room = player.current_room - 1
+        elif direction == "RIGHT":
+            target_room = player.current_room + 1
+
+        if target_room in self.game.graph.neighbors(player.current_room):
+            
+            print("authorized")
+            return False
+        else:
+            print("Unauthorized")
+            return True
 
     def render(self, mode='human'):
         """

@@ -14,7 +14,6 @@ def main():
     
     # Option 2: Load a pre-existing model and test
     agent.load_model('maze_q_learning_model.pkl')
-    print(agent.q_table[0, 23])
     # Perform multiple test runs
     test_rewards = agent.test(num_tests=10)
     #print("\nTest Rewards:", test_rewards)

@@ -121,37 +121,32 @@ class MazeGenerator:
         
         return G
 
+    def get_neighbors(self, room_id: int) -> List[int]:
+        """
+        Ottiene le stanze adiacenti per una data stanza.
+        Args:
+            room_id (int): ID della stanza
+        Returns:
+            List[int]: Lista degli ID delle stanze adiacenti
+        """
+        neighbors = []
+        row = room_id // self.num_cols
+        col = room_id % self.num_cols
 
+        # Controlla stanza a sinistra
+        if col > 0:
+            neighbors.append(room_id - 1)
+        
+        # Controlla stanza a destra
+        if col < self.num_cols - 1:
+            neighbors.append(room_id + 1)
+        
+        # Controlla stanza sopra
+        if row > 0:
+            neighbors.append(room_id - self.num_cols)
+        
+        # Controlla stanza sotto
+        if row < self.num_rows - 1:
+            neighbors.append(room_id + self.num_cols)
 
-
-
-
-        def get_neighbors(self, room_id: int) -> List[int]:
-            """
-            Ottiene le stanze adiacenti per una data stanza.
-            Args:
-                room_id (int): ID della stanza
-            Returns:
-                List[int]: Lista degli ID delle stanze adiacenti
-            """
-            neighbors = []
-            row = room_id // self.num_cols
-            col = room_id % self.num_cols
-
-            # Controlla stanza a sinistra
-            if col > 0:
-                neighbors.append(room_id - 1)
-            
-            # Controlla stanza a destra
-            if col < self.num_cols - 1:
-                neighbors.append(room_id + 1)
-            
-            # Controlla stanza sopra
-            if row > 0:
-                neighbors.append(room_id - self.num_cols)
-            
-            # Controlla stanza sotto
-            if row < self.num_rows - 1:
-                neighbors.append(room_id + self.num_cols)
-
-            return neighbors
+        return neighbors
