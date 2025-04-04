@@ -76,11 +76,13 @@ class QLearningAgent:
                     action = self.env.action_space.sample()  # Exploration
                 else:
                     action = np.argmax(self.q_table[state])  # Exploitation
-                
+                print(f"\n\n\n\n\n[DEBUG]action: {action}")
+                print(f"[DEBUG]state: {state}")
                 # Execute action
                 next_state, reward, done, truncated, info = self.env.step(action)
+                print(f"[DEBUG]pre discretize: {next_state}")
                 next_state = self.discretize_state(next_state)
-                
+                print(f"[DEBUG]next_state: {next_state}\n\n\n\n")
                 # Q-table update
                 old_value = self.q_table[state + (action,)]
                 next_max = np.max(self.q_table[next_state])

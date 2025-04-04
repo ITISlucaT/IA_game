@@ -18,7 +18,7 @@ def main():
     BUFFER_SIZE = 4096
     while True:
         robot_current_room = int(input("Inserisci stanza robot "))
-        direction = get_direction(agent=agent, state=(robot_current_room, 0))
+        direction = get_direction(agent=agent, state=(robot_current_room, 23))
         print(f"direction: {direction}")
    
     
