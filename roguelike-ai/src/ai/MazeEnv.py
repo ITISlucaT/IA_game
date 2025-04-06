@@ -57,7 +57,7 @@ class MazeEnv(gym.Env):
         
         return self.state, {}
 
-    def step(self, action):
+    def step(self, action, player):
         """
         Execute an action and return:
         - next_state: the new state
@@ -66,20 +66,21 @@ class MazeEnv(gym.Env):
         - info: additional information
         """
         reward = 0
-        if self.unauthorized_moves(action=action, player=self.game.player1):
-            reward -= 30
-        elif self.unauthorized_moves(action=action, player=self.game.player2):
-            reward -= 30
-        print(f"[DEBUG]reward: {reward}")
+        if self.unauthorized_moves(action=action, player=player):
+            reward -= 5
+        # elif self.unauthorized_moves(action=action, player=self.game.player2):
+        #     reward -= 15
+        #print(f"[DEBUG]reward: {reward}")
         # Execute the action for player1
-        self._move_player(self.game.player1, action)
+        self._move_player(player, action)
         
         # Move player2 using a separate strategy 
-        self._move_player2()
+        #self._move_player(self.game.player2, action)
+        #self._move_player2()
         
         # Get the new state
         next_state = self._get_state()
-        print(next_state)
+        #print(next_state)
         
         # Calculate the reward
         reward += self._get_reward(action)
@@ -193,8 +194,7 @@ class MazeEnv(gym.Env):
         Calculate the reward based on the current state.
         """
         reward = 0
-        
-        # Reward for getting closer to the target
+
         previous_distance = self.game.previous_distance_room
         current_distance = nx.shortest_path_length(
             self.game.graph, 
@@ -202,28 +202,25 @@ class MazeEnv(gym.Env):
             self.game.player2.current_room
         )
         
+        # Ricompensa proporzionale all'avvicinamento
         if current_distance < previous_distance:
-            reward += 1  # Reward for getting closer
-        
-        # Reward for reaching the target
-        if self.game.check_collision_between_player():
-            reward += 10
-        
-        # Small time penalty
-        reward -= 0.1
-        
-        # Movement metrics
-        metrics = self.game.player1.get_movement_metrics()
-        
-        # Penalize idle time
-        # reward += -0.1 * metrics['idle_time']
-        
-        # Reward movement
-        reward += 0.5 if metrics['is_moving'] else -0.2
+            reward += 3  # prima era solo +1
+        elif current_distance > previous_distance:
+            reward -= 1  # punizione per allontanamento
 
-              
-        
+        # Raggiunto il target
+        if self.game.check_collision_between_player():
+            reward += 50  # era 10 ora più incisivo per favorire l’obiettivo
+
+        reward -= 0.02
+
+        # Penalità per stare fermo
+        metrics = self.game.player1.get_movement_metrics()
+        if not metrics['is_moving']:
+            reward -= 0.5  # più significativa per evitare idle
+
         return reward
+
     
     def unauthorized_moves(self, action, player):
         action_map = {
