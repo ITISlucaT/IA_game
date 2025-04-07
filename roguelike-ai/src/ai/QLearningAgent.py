@@ -8,7 +8,7 @@ import time
 
 class QLearningAgent:
     def __init__(self, env, learning_rate=0.1, discount_factor=0.99, 
-                 exploration_rate=1.0, exploration_decay=0.999, min_exploration=0.01):
+                 exploration_rate=0.7, exploration_decay=0.995, min_exploration=0.01):
         """
         Initialize Q-Learning Agent
         
@@ -33,10 +33,9 @@ class QLearningAgent:
         # Define Q-table dimensions
         state_size = (self.num_rooms, self.num_rooms)
         action_size = env.action_space.n
-        self.initial_q_value = 5.0
         
         # Initialize Q-table
-        self.q_table = np.ones(state_size + (action_size,)) * self.initial_q_value
+        self.q_table = np.zeros(state_size + (action_size,))
         
         # Training history
         self.training_history = {
@@ -77,13 +76,13 @@ class QLearningAgent:
                     action = self.env.action_space.sample()  # Exploration
                 else:
                     action = np.argmax(self.q_table[state])  # Exploitation
-                #print(f"\n\n\n\n\n[DEBUG]action: {action}")
-                #print(f"[DEBUG]state: {state}")
+                print(f"\n\n\n\n\n[DEBUG]action: {action}")
+                print(f"[DEBUG]state: {state}")
                 # Execute action
-                next_state, reward, done, truncated, info = self.env.step(action, self.env.game.player1)
-                #print(f"[DEBUG]pre discretize: {next_state}")
+                next_state, reward, done, truncated, info = self.env.step(action)
+                print(f"[DEBUG]pre discretize: {next_state}")
                 next_state = self.discretize_state(next_state)
-                #print(f"[DEBUG]next_state: {next_state}\n\n\n\n")
+                print(f"[DEBUG]next_state: {next_state}\n\n\n\n")
                 # Q-table update
                 old_value = self.q_table[state + (action,)]
                 next_max = np.max(self.q_table[next_state])
@@ -143,9 +142,7 @@ class QLearningAgent:
                 action = np.argmax(self.q_table[state])
                 
                 # Execute action
-                next_state, reward, done, truncated, info = self.env.step(action, self.env.game.player1)
-                self.env.step(action, self.env.game.player2) #simulo con entrmabi mossi da IA
-
+                next_state, reward, done, truncated, info = self.env.step(action)
                 next_state = self.discretize_state(next_state)
                 #print(f"State: {state}")
                 print(f"\Action {action}")

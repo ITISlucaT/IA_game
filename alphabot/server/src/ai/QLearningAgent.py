@@ -5,12 +5,10 @@ from src.ai.MazeEnv import MazeEnv
 import os
 import pickle
 import time
-import socket
-import threading
 
 class QLearningAgent:
     def __init__(self, env, learning_rate=0.1, discount_factor=0.99, 
-                 exploration_rate=1.0, exploration_decay=0.995, min_exploration=0.01):
+                 exploration_rate=0.7, exploration_decay=0.995, min_exploration=0.01):
         """
         Initialize Q-Learning Agent
         
@@ -51,7 +49,12 @@ class QLearningAgent:
         """
         player_room = max(0, min(int(state[0]), self.num_rooms - 1))
         target_room = max(0, min(int(state[1]), self.num_rooms - 1))
+        #print(f"player_room = {player_room}, target_room = {target_room}")
         return (player_room, target_room)
+    
+    def get_action(self, state):
+        print(self.q_table[state])
+        return np.argmax(self.q_table[state])
 
     def train(self, num_episodes=200, max_steps_per_episode=200):
         """
@@ -77,11 +80,13 @@ class QLearningAgent:
                     action = self.env.action_space.sample()  # Exploration
                 else:
                     action = np.argmax(self.q_table[state])  # Exploitation
-                
+                print(f"\n\n\n\n\n[DEBUG]action: {action}")
+                print(f"[DEBUG]state: {state}")
                 # Execute action
                 next_state, reward, done, truncated, info = self.env.step(action)
+                print(f"[DEBUG]pre discretize: {next_state}")
                 next_state = self.discretize_state(next_state)
-                
+                print(f"[DEBUG]next_state: {next_state}\n\n\n\n")
                 # Q-table update
                 old_value = self.q_table[state + (action,)]
                 next_max = np.max(self.q_table[next_state])
@@ -143,12 +148,14 @@ class QLearningAgent:
                 # Execute action
                 next_state, reward, done, truncated, info = self.env.step(action)
                 next_state = self.discretize_state(next_state)
+                #print(f"State: {state}")
+                print(f"\Action {action}")
+                print(f"q_table: {self.q_table[state]}")
                 
                 state = next_state
                 total_reward += reward
                 steps += 1
                 time.sleep(1)
-                print(f"state={state} reward={reward}")
                 # Render if specified
                 if render:
                     self.env.render()
@@ -159,11 +166,6 @@ class QLearningAgent:
             test_rewards.append(total_reward)
         
         return test_rewards
-    
-    def get_action(self, state):
-        print(self.q_table[state])
-        return np.argmax(self.q_table[state])
-    
 
     def save_model(self, filename='q_learning_model.pkl'):
         """
@@ -194,4 +196,3 @@ class QLearningAgent:
             print(f"Model loaded from {filename}")
         else:
             print(f"No model found at {filename}")
-        

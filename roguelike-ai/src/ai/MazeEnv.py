@@ -57,41 +57,40 @@ class MazeEnv(gym.Env):
         
         return self.state, {}
 
-    def step(self, action, player):
-        """
-        Execute an action and return:
-        - next_state: the new state
-        - reward: the reward obtained
-        - done: if the episode is terminated
-        - info: additional information
-        """
-        reward = 0
-        if self.unauthorized_moves(action=action, player=player):
-            reward -= 5
-        # elif self.unauthorized_moves(action=action, player=self.game.player2):
-        #     reward -= 15
-        #print(f"[DEBUG]reward: {reward}")
+    def step(self, action):
+        # Check if the move is unauthorized
+        if self.unauthorized_moves(action=action, player=self.game.player1):
+            # Apply penalty
+            reward = -5
+            # Don't change the state
+            next_state = self._get_state()
+            # Maybe set done to True or use a truncated flag
+            return next_state, reward, False, True, {}
+            
+        # If we get here, the move is authorized
         # Execute the action for player1
-        self._move_player(player, action)
+        self._move_player(self.game.player1, action)
         
         # Move player2 using a separate strategy 
-        #self._move_player(self.game.player2, action)
-        #self._move_player2()
+        self._move_player2()
         
         # Get the new state
         next_state = self._get_state()
-        #print(next_state)
         
         # Calculate the reward
-        reward += self._get_reward(action)
+        reward = self._get_reward(action)
+        
+        # Save current distance for next comparison
+        self.game.previous_distance_room = nx.shortest_path_length(
+            self.game.graph, 
+            self.game.player1.current_room, 
+            self.game.player2.current_room
+        )
         
         # Check if the episode is terminated
         done = self.game.check_collision_between_player() or self.game.timer(1)
         
-        # Additional info (optional)
-        info = {}
-        
-        return next_state, reward, done, False, info
+        return next_state, reward, done, False, {}
 
     def _move_player(self, player, action):
         """
@@ -194,7 +193,8 @@ class MazeEnv(gym.Env):
         Calculate the reward based on the current state.
         """
         reward = 0
-
+        
+        # Reward for getting closer to the target
         previous_distance = self.game.previous_distance_room
         current_distance = nx.shortest_path_length(
             self.game.graph, 
@@ -202,25 +202,28 @@ class MazeEnv(gym.Env):
             self.game.player2.current_room
         )
         
-        # Ricompensa proporzionale all'avvicinamento
         if current_distance < previous_distance:
-            reward += 3  # prima era solo +1
-        elif current_distance > previous_distance:
-            reward -= 1  # punizione per allontanamento
-
-        # Raggiunto il target
+            reward += 1  # Reward for getting closer 1
+        
+        # Reward for reaching the target
         if self.game.check_collision_between_player():
-            reward += 50  # era 10 ora più incisivo per favorire l’obiettivo
-
-        reward -= 0.02
-
-        # Penalità per stare fermo
+            reward += 5 #10
+        
+        # Small time penalty
+        reward -= 0.1
+        
+        # Movement metrics
         metrics = self.game.player1.get_movement_metrics()
-        if not metrics['is_moving']:
-            reward -= 0.5  # più significativa per evitare idle
+        
+        # Penalize idle time
+        # reward += -0.1 * metrics['idle_time']
+        
+        # Reward movement
+        reward += 0.5 if metrics['is_moving'] else -0.2
 
+              
+        
         return reward
-
     
     def unauthorized_moves(self, action, player):
         action_map = {

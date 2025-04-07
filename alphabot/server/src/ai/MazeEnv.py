@@ -16,7 +16,7 @@ class MazeEnv(gym.Env):
         self.game = MazeGame()
         
         # Define action space (discrete)
-        self.action_space = spaces.Discrete(5)  # 0: UP, 1: DOWN, 2: LEFT, 3: RIGHT, 4: STOP
+        self.action_space = spaces.Discrete(4)  # 0: UP, 1: DOWN, 2: LEFT, 3: RIGHT
         
         # Define observation space
         # Now using more comprehensive state representation
@@ -58,13 +58,16 @@ class MazeEnv(gym.Env):
         return self.state, {}
 
     def step(self, action):
-        """
-        Execute an action and return:
-        - next_state: the new state
-        - reward: the reward obtained
-        - done: if the episode is terminated
-        - info: additional information
-        """
+        # Check if the move is unauthorized
+        if self.unauthorized_moves(action=action, player=self.game.player1):
+            # Apply penalty
+            reward = -5
+            # Don't change the state
+            next_state = self._get_state()
+            # Maybe set done to True or use a truncated flag
+            return next_state, reward, False, True, {}
+            
+        # If we get here, the move is authorized
         # Execute the action for player1
         self._move_player(self.game.player1, action)
         
@@ -73,18 +76,21 @@ class MazeEnv(gym.Env):
         
         # Get the new state
         next_state = self._get_state()
-        print(next_state)
         
         # Calculate the reward
-        reward = self._get_reward()
+        reward = self._get_reward(action)
+        
+        # Save current distance for next comparison
+        self.game.previous_distance_room = nx.shortest_path_length(
+            self.game.graph, 
+            self.game.player1.current_room, 
+            self.game.player2.current_room
+        )
         
         # Check if the episode is terminated
         done = self.game.check_collision_between_player() or self.game.timer(1)
         
-        # Additional info (optional)
-        info = {}
-        
-        return next_state, reward, done, False, info
+        return next_state, reward, done, False, {}
 
     def _move_player(self, player, action):
         """
@@ -95,8 +101,7 @@ class MazeEnv(gym.Env):
             0: "UP",
             1: "DOWN", 
             2: "LEFT", 
-            3: "RIGHT",
-            4: "STOP"
+            3: "RIGHT"
         }
         direction = action_map[action]
         
@@ -183,7 +188,7 @@ class MazeEnv(gym.Env):
                     player2.grid_y * player2.tile_size + player2.tile_size // 2
                 ]
 
-    def _get_reward(self):
+    def _get_reward(self, action):
         """
         Calculate the reward based on the current state.
         """
@@ -198,11 +203,11 @@ class MazeEnv(gym.Env):
         )
         
         if current_distance < previous_distance:
-            reward += 1  # Reward for getting closer
+            reward += 1  # Reward for getting closer 1
         
         # Reward for reaching the target
         if self.game.check_collision_between_player():
-            reward += 10
+            reward += 5 #10
         
         # Small time penalty
         reward -= 0.1
@@ -215,8 +220,34 @@ class MazeEnv(gym.Env):
         
         # Reward movement
         reward += 0.5 if metrics['is_moving'] else -0.2
+
+              
         
         return reward
+    
+    def unauthorized_moves(self, action, player):
+        action_map = {
+            0: "UP",
+            1: "DOWN", 
+            2: "LEFT", 
+            3: "RIGHT",
+            4: "STOP"
+        }
+        direction = action_map[action]
+
+        if direction == "UP":
+            target_room = player.current_room - self.game.NUM_COLS
+        elif direction == "DOWN":
+            target_room = player.current_room + self.game.NUM_COLS
+        elif direction == "LEFT":
+            target_room = player.current_room - 1
+        elif direction == "RIGHT":
+            target_room = player.current_room + 1
+
+        if target_room in self.game.graph.neighbors(player.current_room):
+            return False
+        else:
+            return True
 
     def render(self, mode='human'):
         """
